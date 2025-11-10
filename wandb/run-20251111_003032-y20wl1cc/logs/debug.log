@@ -1,0 +1,27 @@
+2025-11-11 00:30:32,353 INFO    MainThread:20272 [wandb_setup.py:_flush():81] Current SDK version is 0.22.3
+2025-11-11 00:30:32,353 INFO    MainThread:20272 [wandb_setup.py:_flush():81] Configure stats pid to 20272
+2025-11-11 00:30:32,353 INFO    MainThread:20272 [wandb_setup.py:_flush():81] Loading settings from C:\Users\cutes\.config\wandb\settings
+2025-11-11 00:30:32,353 INFO    MainThread:20272 [wandb_setup.py:_flush():81] Loading settings from E:\rl AI\wandb\settings
+2025-11-11 00:30:32,353 INFO    MainThread:20272 [wandb_setup.py:_flush():81] Loading settings from environment variables
+2025-11-11 00:30:32,353 INFO    MainThread:20272 [wandb_init.py:setup_run_log_directory():706] Logging user logs to E:\rl AI\wandb\run-20251111_003032-y20wl1cc\logs\debug.log
+2025-11-11 00:30:32,353 INFO    MainThread:20272 [wandb_init.py:setup_run_log_directory():707] Logging internal logs to E:\rl AI\wandb\run-20251111_003032-y20wl1cc\logs\debug-internal.log
+2025-11-11 00:30:32,353 INFO    MainThread:20272 [wandb_init.py:init():833] calling init triggers
+2025-11-11 00:30:32,353 INFO    MainThread:20272 [wandb_init.py:init():838] wandb.init called with sweep_config: {}
+config: {'n_proc': 8, 'min_inference_size': 7, 'timestep_limit': 200000000, 'exp_buffer_size': 150000, 'ts_per_iteration': 50000, 'standardize_returns': True, 'standardize_obs': True, 'policy_layer_sizes': [256, 256, 256], 'critic_layer_sizes': [256, 256, 256], 'ppo_epochs': 2, 'ppo_batch_size': 50000, 'ppo_minibatch_size': 50000, 'ppo_ent_coef': 0.01, 'ppo_clip_range': 0.2, 'gae_lambda': 0.95, 'gae_gamma': 0.99, 'policy_lr': 0.0001, 'critic_lr': 0.0001, 'shm_buffer_size': 8192, '_wandb': {}}
+2025-11-11 00:30:32,353 INFO    MainThread:20272 [wandb_init.py:init():881] starting backend
+2025-11-11 00:30:34,599 INFO    MainThread:20272 [wandb_init.py:init():884] sending inform_init request
+2025-11-11 00:30:34,610 INFO    MainThread:20272 [wandb_init.py:init():892] backend started and connected
+2025-11-11 00:30:34,611 INFO    MainThread:20272 [wandb_init.py:init():962] updated telemetry
+2025-11-11 00:30:34,646 INFO    MainThread:20272 [wandb_init.py:init():986] communicating run to backend with 90.0 second timeout
+2025-11-11 00:30:35,391 INFO    MainThread:20272 [wandb_init.py:init():1028] run resumed
+2025-11-11 00:30:35,393 INFO    MainThread:20272 [wandb_init.py:init():1033] starting run threads in backend
+2025-11-11 00:30:35,472 INFO    MainThread:20272 [wandb_run.py:_console_start():2506] atexit reg
+2025-11-11 00:30:35,472 INFO    MainThread:20272 [wandb_run.py:_redirect():2354] redirect: wrap_raw
+2025-11-11 00:30:35,472 INFO    MainThread:20272 [wandb_run.py:_redirect():2423] Wrapping output streams.
+2025-11-11 00:30:35,472 INFO    MainThread:20272 [wandb_run.py:_redirect():2446] Redirects installed.
+2025-11-11 00:30:35,475 INFO    MainThread:20272 [wandb_init.py:init():1073] run started, returning control to user process
+2025-11-11 00:38:33,624 INFO    MainThread:20272 [wandb_run.py:_finish():2272] finishing run gashfraude-epsi/rlgym-ppo/y20wl1cc
+2025-11-11 00:38:33,625 INFO    MainThread:20272 [wandb_run.py:_atexit_cleanup():2471] got exitcode: 0
+2025-11-11 00:38:33,626 INFO    MainThread:20272 [wandb_run.py:_restore():2453] restore
+2025-11-11 00:38:33,626 INFO    MainThread:20272 [wandb_run.py:_restore():2459] restore done
+2025-11-11 00:38:34,522 INFO    MainThread:20272 [wandb_run.py:_footer_sync_info():3835] logging synced files

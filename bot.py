@@ -59,7 +59,7 @@ def build_rocketsim_env():
     (EventReward(touch=1), 50),
     (SpeedTowardBallReward(), 5),
     (FaceBallReward(), 1),
-    (InAirReward(), 0.15)
+    (InAirReward(), 0.05)
 )
 
     obs_builder = DefaultObs(
@@ -87,7 +87,7 @@ if __name__ == "__main__":
     metrics_logger = ExampleLogger()
 
     # 8 processes
-    n_proc = 6
+    n_proc = 4
 
     # educated guess - could be slightly higher or lower
     min_inference_size = max(1, int(round(n_proc * 0.9)))
@@ -138,5 +138,5 @@ if __name__ == "__main__":
                       checkpoint_load_folder=latest_checkpoint_dir,
                       render=True,
                       render_delay=STEP_TIME,  # Normal speed: one state per step at real-time speed
-                      log_to_wandb=False)
+                      log_to_wandb=True)
     learner.learn()
