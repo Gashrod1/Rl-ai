@@ -1,0 +1,15 @@
+{"time":"2025-11-10T22:50:31.7680835+01:00","level":"INFO","msg":"stream: starting","core version":"0.19.8","symlink path":"C:\\Users\\mattp\\Documents\\perso\\rl-ai\\Rl-ai\\wandb\\offline-run-20251110_225031-y20wl1cc\\logs\\debug-core.log"}
+{"time":"2025-11-10T22:50:32.1403412+01:00","level":"INFO","msg":"created new stream","id":"y20wl1cc"}
+{"time":"2025-11-10T22:50:32.1403412+01:00","level":"INFO","msg":"stream: started","id":"y20wl1cc"}
+{"time":"2025-11-10T22:50:32.1403412+01:00","level":"INFO","msg":"handler: started","stream_id":"y20wl1cc"}
+{"time":"2025-11-10T22:50:32.1403412+01:00","level":"INFO","msg":"writer: Do: started","stream_id":"y20wl1cc"}
+{"time":"2025-11-10T22:50:32.1403412+01:00","level":"INFO","msg":"sender: started","stream_id":"y20wl1cc"}
+{"time":"2025-11-10T22:50:32.1471617+01:00","level":"INFO","msg":"Starting system monitor"}
+{"time":"2025-11-10T23:38:28.2239864+01:00","level":"INFO","msg":"Stopping system monitor"}
+{"time":"2025-11-10T23:38:28.2250321+01:00","level":"INFO","msg":"Stopped system monitor"}
+{"time":"2025-11-10T23:38:28.2260961+01:00","level":"INFO","msg":"handler: operation stats","stats":{}}
+{"time":"2025-11-10T23:38:28.2346845+01:00","level":"INFO","msg":"stream: closing","id":"y20wl1cc"}
+{"time":"2025-11-10T23:38:28.2346845+01:00","level":"INFO","msg":"handler: closed","stream_id":"y20wl1cc"}
+{"time":"2025-11-10T23:38:28.2352229+01:00","level":"INFO","msg":"writer: Close: closed","stream_id":"y20wl1cc"}
+{"time":"2025-11-10T23:38:28.2352229+01:00","level":"INFO","msg":"sender: closed","stream_id":"y20wl1cc"}
+{"time":"2025-11-10T23:38:28.2352229+01:00","level":"INFO","msg":"stream: closed","id":"y20wl1cc"}
