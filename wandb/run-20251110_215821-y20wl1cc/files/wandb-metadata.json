@@ -1,0 +1,24 @@
+{
+  "os": "Windows-10-10.0.26100-SP0",
+  "python": "CPython 3.11.9",
+  "startedAt": "2025-11-10T20:58:21.681831Z",
+  "program": "E:\\rl AI\\bot.py",
+  "codePath": "bot.py",
+  "codePathLocal": "bot.py",
+  "email": "cuteslenaa@gmail.com",
+  "root": "E:\\rl AI",
+  "host": "3FBTS4CR",
+  "executable": "C:\\Users\\cutes\\AppData\\Local\\Microsoft\\WindowsApps\\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\\python.exe",
+  "cpu_count": 6,
+  "cpu_count_logical": 6,
+  "disk": {
+    "/": {
+      "total": "1000186310656",
+      "used": "794269155328"
+    }
+  },
+  "memory": {
+    "total": "17122422784"
+  },
+  "writerId": "jt7zvpcnhm0z48a6t152wdxgjdongcrp"
+}

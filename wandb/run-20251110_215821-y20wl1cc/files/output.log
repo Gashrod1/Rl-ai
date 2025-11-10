@@ -1,0 +1,26 @@
+Checkpoint loaded!
+Learner successfully initialized!
+Press (p) to pause (c) to checkpoint, (q) to checkpoint and quit (after next iteration)
+
+
+
+LEARNING LOOP ENCOUNTERED AN ERROR
+Traceback (most recent call last):
+  File "C:\Users\cutes\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\LocalCache\local-packages\Python311\site-packages\rlgym_ppo\learner.py", line 225, in learn
+    self._learn()
+  File "C:\Users\cutes\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\LocalCache\local-packages\Python311\site-packages\rlgym_ppo\learner.py", line 257, in _learn
+    experience, collected_metrics, steps_collected, collection_time = self.agent.collect_timesteps(
+                                                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\cutes\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\LocalCache\local-packages\Python311\site-packages\rlgym_ppo\batched_agents\batched_agent_manager.py", line 114, in collect_timesteps
+    ) = self._collect_responses(n_obs_per_inference)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\cutes\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\LocalCache\local-packages\Python311\site-packages\rlgym_ppo\batched_agents\batched_agent_manager.py", line 247, in _collect_responses
+    n_collected += self._collect_response(
+                   ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\cutes\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\LocalCache\local-packages\Python311\site-packages\rlgym_ppo\batched_agents\batched_agent_manager.py", line 257, in _collect_response
+    available_data = parent_end.recv(PACKET_MAX_SIZE)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote host
+
+Saving checkpoint 800042...
+Checkpoint 800042 saved!

@@ -1,0 +1,28 @@
+{
+  "os": "Windows-10-10.0.26100-SP0",
+  "python": "CPython 3.11.9",
+  "startedAt": "2025-11-09T19:55:47.732061Z",
+  "program": "C:\\Users\\cutes\\Documents\\perso\\rl AI\\bot.py",
+  "codePath": "rl AI\\bot.py",
+  "codePathLocal": "bot.py",
+  "git": {
+    "remote": "https://github.com/Gashrod1/random_lyrics_api.git",
+    "commit": "5538dc1d71b97a6236f05d24f7f59e3628397ac7"
+  },
+  "email": "cuteslenaa@gmail.com",
+  "root": "C:\\Users\\cutes\\Documents\\perso\\rl AI",
+  "host": "3FBTS4CR",
+  "executable": "C:\\Users\\cutes\\AppData\\Local\\Microsoft\\WindowsApps\\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\\python.exe",
+  "cpu_count": 6,
+  "cpu_count_logical": 6,
+  "disk": {
+    "/": {
+      "total": "238987067392",
+      "used": "233118076928"
+    }
+  },
+  "memory": {
+    "total": "17122422784"
+  },
+  "writerId": "eoa0n1hqe4s0k51mpw2hqrdywanyh354"
+}
