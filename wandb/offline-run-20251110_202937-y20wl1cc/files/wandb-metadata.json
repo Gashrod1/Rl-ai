@@ -1,0 +1,30 @@
+{
+  "os":  "Windows-11-10.0.26100-SP0",
+  "python":  "CPython 3.12.10",
+  "startedAt":  "2025-11-10T19:29:37.523931Z",
+  "program":  "C:\\Users\\mattp\\Documents\\perso\\rl-ai\\Rl-ai\\bot.py",
+  "codePath":  "bot.py",
+  "git":  {
+    "remote":  "https://github.com/Gashrod1/Rl-ai.git",
+    "commit":  "506fe69da132bcf579262bfed266ce0c80780801"
+  },
+  "root":  "C:\\Users\\mattp\\Documents\\perso\\rl-ai\\Rl-ai",
+  "host":  "Desktop-XD66N",
+  "executable":  "C:\\Users\\mattp\\AppData\\Local\\Microsoft\\WindowsApps\\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\\python.exe",
+  "codePathLocal":  "bot.py",
+  "cpu_count":  4,
+  "cpu_count_logical":  8,
+  "disk":  {
+    "/":  {
+      "total":  "811970400256",
+      "used":  "469578412032"
+    }
+  },
+  "memory":  {
+    "total":  "16407719936"
+  },
+  "cpu":  {
+    "count":  4,
+    "countLogical":  8
+  }
+}

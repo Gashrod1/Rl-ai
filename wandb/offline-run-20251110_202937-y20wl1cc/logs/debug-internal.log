@@ -1,0 +1,7 @@
+{"time":"2025-11-10T20:29:37.73104+01:00","level":"INFO","msg":"stream: starting","core version":"0.19.8","symlink path":"C:\\Users\\mattp\\Documents\\perso\\rl-ai\\Rl-ai\\wandb\\offline-run-20251110_202937-y20wl1cc\\logs\\debug-core.log"}
+{"time":"2025-11-10T20:29:38.2125122+01:00","level":"INFO","msg":"created new stream","id":"y20wl1cc"}
+{"time":"2025-11-10T20:29:38.2130412+01:00","level":"INFO","msg":"stream: started","id":"y20wl1cc"}
+{"time":"2025-11-10T20:29:38.2130412+01:00","level":"INFO","msg":"sender: started","stream_id":"y20wl1cc"}
+{"time":"2025-11-10T20:29:38.2130412+01:00","level":"INFO","msg":"writer: Do: started","stream_id":"y20wl1cc"}
+{"time":"2025-11-10T20:29:38.2125122+01:00","level":"INFO","msg":"handler: started","stream_id":"y20wl1cc"}
+{"time":"2025-11-10T20:29:38.2210863+01:00","level":"INFO","msg":"Starting system monitor"}
