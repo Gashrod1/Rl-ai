@@ -1,0 +1,42 @@
+Checkpoint loaded!
+Learner successfully initialized!
+Press (p) to pause (c) to checkpoint, (q) to checkpoint and quit (after next iteration)
+
+--------BEGIN ITERATION REPORT--------
+Policy Reward: 85.81288
+Policy Entropy: 0.77200
+Value Function Loss: nan
+
+Mean KL Divergence: 0.00440
+SB3 Clip Fraction: 0.06575
+Policy Update Magnitude: 0.24674
+Value Function Update Magnitude: 0.35414
+
+Collected Steps per Second: 1,483.49511
+Overall Steps per Second: 1,354.42787
+
+Timestep Collection Time: 33.70621
+Timestep Consumption Time: 3.21196
+PPO Batch Consumption Time: 0.80029
+Total Iteration Time: 36.91817
+
+Cumulative Model Updates: 4
+Cumulative Timesteps: 100,003
+
+Timesteps Collected: 50,003
+--------END ITERATION REPORT--------
+
+
+
+
+LEARNING LOOP ENCOUNTERED AN ERROR
+Traceback (most recent call last):
+  File "C:\Users\cutes\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\LocalCache\local-packages\Python311\site-packages\rlgym_ppo\learner.py", line 225, in learn
+    self._learn()
+  File "C:\Users\cutes\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\LocalCache\local-packages\Python311\site-packages\rlgym_ppo\learner.py", line 301, in _learn
+    if "cuda" in self.device:
+       ^^^^^^^^^^^^^^^^^^^^^
+TypeError: argument of type 'torch.device' is not iterable
+
+Saving checkpoint 100003...
+Checkpoint 100003 saved!

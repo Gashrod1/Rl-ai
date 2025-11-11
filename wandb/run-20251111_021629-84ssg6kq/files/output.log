@@ -1,0 +1,44 @@
+Created new wandb run! 84ssg6kq
+Learner successfully initialized!
+Press (p) to pause (c) to checkpoint, (q) to checkpoint and quit (after next iteration)
+C:\Users\cutes\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\LocalCache\local-packages\Python311\site-packages\torch\distributions\normal.py:71: UserWarning: The operator 'aten::normal.Tensor_Tensor' is not currently supported on the DML backend and will fall back to run on the CPU. This may have performance implications. (Triggered internally at C:\__w\1\s\pytorch-directml-plugin\torch_directml\csrc\dml\dml_cpu_fallback.cpp:17.)
+  return torch.normal(self.loc.expand(shape), self.scale.expand(shape))
+
+--------BEGIN ITERATION REPORT--------
+Policy Reward: 112.99104
+Policy Entropy: 0.80868
+Value Function Loss: nan
+
+Mean KL Divergence: 0.00534
+SB3 Clip Fraction: 0.09167
+Policy Update Magnitude: 0.39152
+Value Function Update Magnitude: 0.43172
+
+Collected Steps per Second: 1,403.59584
+Overall Steps per Second: 1,245.72521
+
+Timestep Collection Time: 35.62279
+Timestep Consumption Time: 4.51447
+PPO Batch Consumption Time: 1.25490
+Total Iteration Time: 40.13726
+
+Cumulative Model Updates: 2
+Cumulative Timesteps: 50,000
+
+Timesteps Collected: 50,000
+--------END ITERATION REPORT--------
+
+
+
+
+LEARNING LOOP ENCOUNTERED AN ERROR
+Traceback (most recent call last):
+  File "C:\Users\cutes\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\LocalCache\local-packages\Python311\site-packages\rlgym_ppo\learner.py", line 225, in learn
+    self._learn()
+  File "C:\Users\cutes\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\LocalCache\local-packages\Python311\site-packages\rlgym_ppo\learner.py", line 301, in _learn
+    if "cuda" in self.device:
+       ^^^^^^^^^^^^^^^^^^^^^
+TypeError: argument of type 'torch.device' is not iterable
+
+Saving checkpoint 50000...
+Checkpoint 50000 saved!

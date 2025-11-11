@@ -1,0 +1,21 @@
+{"time":"2025-11-11T02:19:44.8751855+01:00","level":"INFO","msg":"stream: starting","core version":"0.22.3"}
+{"time":"2025-11-11T02:19:45.1785161+01:00","level":"INFO","msg":"stream: created new stream","id":"9prg5n79"}
+{"time":"2025-11-11T02:19:45.1785161+01:00","level":"INFO","msg":"handler: started","stream_id":"9prg5n79"}
+{"time":"2025-11-11T02:19:45.1790191+01:00","level":"INFO","msg":"stream: started","id":"9prg5n79"}
+{"time":"2025-11-11T02:19:45.1790191+01:00","level":"INFO","msg":"sender: started","stream_id":"9prg5n79"}
+{"time":"2025-11-11T02:19:45.1790191+01:00","level":"INFO","msg":"writer: started","stream_id":"9prg5n79"}
+{"time":"2025-11-11T07:00:12.5481474+01:00","level":"INFO","msg":"api: retrying error","error":"Post \"https://api.wandb.ai/graphql\": context deadline exceeded"}
+{"time":"2025-11-11T07:00:35.0272016+01:00","level":"INFO","msg":"api: retrying HTTP error","status":500,"url":"https://api.wandb.ai/files/gashfraude-epsi/rlgym-ppo/9prg5n79/file_stream","body":"{\"error\":\"An internal error occurred. Please contact support.\"}"}
+{"time":"2025-11-11T07:00:36.8852524+01:00","level":"INFO","msg":"flowcontrol: backed up, offloading to disk","recordNumber":10771}
+{"time":"2025-11-11T07:00:44.5715365+01:00","level":"INFO","msg":"api: retrying error","error":"Post \"https://api.wandb.ai/graphql\": context deadline exceeded"}
+{"time":"2025-11-11T07:01:19.321852+01:00","level":"INFO","msg":"api: retrying error","error":"Post \"https://api.wandb.ai/graphql\": net/http: request canceled (Client.Timeout exceeded while awaiting headers)"}
+{"time":"2025-11-11T07:01:32.0196412+01:00","level":"ERROR","msg":"filestream: json decode error: EOF"}
+{"time":"2025-11-11T07:01:58.7825754+01:00","level":"INFO","msg":"api: retrying error","error":"Post \"https://api.wandb.ai/graphql\": context deadline exceeded"}
+{"time":"2025-11-11T07:02:27.2347383+01:00","level":"INFO","msg":"api: retrying HTTP error","status":500,"url":"https://api.wandb.ai/files/gashfraude-epsi/rlgym-ppo/9prg5n79/file_stream","body":"{\"error\":\"An internal error occurred. Please contact support.\"}"}
+{"time":"2025-11-11T07:02:46.1772049+01:00","level":"INFO","msg":"flowcontrol: unblocked","totalOffloaded":92}
+{"time":"2025-11-11T09:54:00.4998433+01:00","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2025-11-11T09:54:00.77102+01:00","level":"INFO","msg":"handler: operation stats","stats":{}}
+{"time":"2025-11-11T09:54:00.7746377+01:00","level":"INFO","msg":"stream: closing","id":"9prg5n79"}
+{"time":"2025-11-11T09:54:00.7746377+01:00","level":"INFO","msg":"handler: closed","stream_id":"9prg5n79"}
+{"time":"2025-11-11T09:54:00.7746377+01:00","level":"INFO","msg":"sender: closed","stream_id":"9prg5n79"}
+{"time":"2025-11-11T09:54:00.7746377+01:00","level":"INFO","msg":"stream: closed","id":"9prg5n79"}

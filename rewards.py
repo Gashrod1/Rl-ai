@@ -71,3 +71,30 @@ class SpeedTowardBallReward(RewardFunction):
             # Many good behaviors require moving away from the ball, so I highly recommend you don't punish moving away
             # We'll just not give any reward
             return 0
+
+
+class HandbrakePenalty(RewardFunction):
+    """
+    Penalizes excessive handbrake usage to encourage smoother driving.
+    The bot needs to learn proper steering instead of relying on handbrake.
+    """
+    def __init__(self, penalty_weight=0.5):
+        super().__init__()
+        self.penalty_weight = penalty_weight
+
+    def reset(self, initial_state: GameState):
+        pass
+
+    def get_reward(self, player: PlayerData, state: GameState, previous_action: np.ndarray) -> float:
+        # previous_action format: [throttle, steer, pitch, yaw, roll, jump, boost, handbrake]
+        # handbrake is at index 7 (0-indexed)
+        
+        if len(previous_action) > 7:
+            handbrake = previous_action[7]
+            
+            # If handbrake is being used, give negative reward
+            if handbrake > 0.5:  # Binary action, usually 0 or 1
+                return -self.penalty_weight
+        
+        # No penalty if not using handbrake
+        return 0

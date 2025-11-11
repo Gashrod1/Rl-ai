@@ -2,7 +2,7 @@ import numpy as np
 import os
 from rlgym_sim.utils.gamestates import GameState
 from rlgym_ppo.util import MetricsLogger
-from rewards import InAirReward, SpeedTowardBallReward
+from rewards import InAirReward, SpeedTowardBallReward, HandbrakePenalty
 
 # Game timing constants
 TICK_SKIP = 8  # Number of physics ticks per step
@@ -56,10 +56,12 @@ def build_rocketsim_env():
 
     reward_fn = CombinedReward.from_zipped(
     # Format is (func, weight)
-    (EventReward(touch=1), 50),
-    (SpeedTowardBallReward(), 5),
-    (FaceBallReward(), 1),
-    (InAirReward(), 0.05)
+    (EventReward(touch=1), 50),           # Toucher la balle
+    (VelocityBallToGoalReward(), 10),     # Pousser la balle vers le but
+    (SpeedTowardBallReward(), 15),        # Augmenté: encourage à garder de la vitesse (décourage le frein à main)
+    (FaceBallReward(), 1),                # Regarder la balle
+    (InAirReward(), 0.003),               # Minimal pour conserver capacité de saut
+    (HandbrakePenalty(), 1)               # NOUVEAU: pénalise l'usage excessif du frein à main
 )
 
     obs_builder = DefaultObs(
@@ -84,10 +86,25 @@ def build_rocketsim_env():
 
 if __name__ == "__main__":
     from rlgym_ppo import Learner
+    import torch
+    
     metrics_logger = ExampleLogger()
 
-    # 8 processes
-    n_proc = 8
+    # Auto-detect GPU for faster training (network size stays the same to keep checkpoints)
+    has_gpu = torch.cuda.is_available()
+    if has_gpu:
+        print(f"🚀 GPU detected: {torch.cuda.get_device_name(0)}")
+        print(f"   VRAM: {torch.cuda.get_device_properties(0).total_memory / 1e9:.1f} GB")
+        n_proc = 8  # More processes with GPU
+        minibatch_size = 25_000  # Smaller batches for VRAM
+    else:
+        print("💻 No GPU detected, using CPU")
+        n_proc = 6  # i5 8600K has 6 cores
+        minibatch_size = 50_000
+
+    # Keep network size constant to preserve checkpoints
+    policy_size = (512, 512, 256)
+    critic_size = (512, 512, 256)
 
     # educated guess - could be slightly higher or lower
     min_inference_size = max(1, int(round(n_proc * 0.9)))
@@ -119,24 +136,40 @@ if __name__ == "__main__":
                       n_proc=n_proc,
                       min_inference_size=min_inference_size,
                       metrics_logger=metrics_logger,
-                      # training loop sizes (keep as before unless you want to tune)
-                      ppo_batch_size=50000,
-                      ts_per_iteration=50000,
-                      exp_buffer_size=150000,
-                      ppo_minibatch_size=50000,
-                      # PPO hyperparameters requested
-                      ppo_ent_coef=0.01,
-                      ppo_epochs=2,
-                      policy_lr=1e-4,
-                      critic_lr=1e-4,
+                      
+                      # Data collection settings
+                      ts_per_iteration=50_000,  # Start with 50k, increase to 100k once bot hits ball consistently
+                      exp_buffer_size=150_000,  # 3x ts_per_iteration for better learning
+                      ppo_batch_size=50_000,    # Same as ts_per_iteration
+                      ppo_minibatch_size=minibatch_size,  # Auto-adjusted based on GPU/CPU
+                      
+                      # Network architecture - Auto-adjusted based on GPU/CPU
+                      policy_layer_sizes=policy_size,
+                      critic_layer_sizes=critic_size,
+                      
+                      # PPO hyperparameters
+                      ppo_ent_coef=0.01,  # Good exploration value (NOT 0.001 like bad example!)
+                      ppo_epochs=2,       # 2-3 is optimal, starting with 2
+                      
+                      # Learning rates - starting high since bot can't score yet
+                      policy_lr=2e-4,     # Higher LR for early learning (decrease to 1e-4 once scoring)
+                      critic_lr=2e-4,     # Keep same as policy_lr
+                      
+                      # Normalization
                       standardize_returns=True,
                       standardize_obs=True,
+                      
+                      # Checkpointing
                       save_every_ts=100_000,
-                      # Use ~200M timesteps as an approximate training budget
-                      timestep_limit=200_000_000,
-                      # If a previous run exists, load checkpoints from it
                       checkpoint_load_folder=latest_checkpoint_dir,
-                      render=True,
-                      render_delay=STEP_TIME,  # Normal speed: one state per step at real-time speed
+                      
+                      # Training duration - set to huge number, stop manually when satisfied
+                      timestep_limit=10e15,  # 10 quadrillion (basically infinite)
+                      
+                      # Rendering - turn OFF for faster training, turn ON to watch
+                      render=False,  # Set to True when you want to watch, False for max speed
+                      render_delay=STEP_TIME / 2,  # 2x speed when rendering is enabled
+                      
+                      # Logging
                       log_to_wandb=True)
     learner.learn()
