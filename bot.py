@@ -102,14 +102,14 @@ if __name__ == "__main__":
         if gpu_vram >= 20:  # 24GB GPU
             print("   ⚡ High VRAM detected - Using optimized settings")
             n_proc = 12
-            minibatch_size = 50_000
+            minibatch_size = 50_000  # Diviseur de 50k
         elif gpu_vram >= 10:  # RTX 3060/3080 (12GB)
             print("   ⚡ Medium VRAM - Optimized for 12GB")
             n_proc = 10
-            minibatch_size = 35_000
+            minibatch_size = 25_000  # Diviseur de 50k (50k / 25k = 2)
         else:  # 8GB
             n_proc = 8
-            minibatch_size = 25_000
+            minibatch_size = 25_000  # Diviseur de 50k
     else:
         device = torch.device("cpu")
         print("⚠️ NO GPU DETECTED - Using CPU (THIS WILL BE SLOW!)")
