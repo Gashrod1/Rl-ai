@@ -92,7 +92,7 @@ if __name__ == "__main__":
 
     # Force GPU usage - explicit device configuration
     if torch.cuda.is_available():
-        device = torch.device("cuda:0")
+        device = "cuda:0"  # Pass as STRING not torch.device object
         gpu_vram = torch.cuda.get_device_properties(0).total_memory / 1e9
         print(f"🚀 GPU FORCED: {torch.cuda.get_device_name(0)}")
         print(f"   VRAM: {gpu_vram:.1f} GB")
@@ -111,7 +111,7 @@ if __name__ == "__main__":
             n_proc = 8
             minibatch_size = 25_000  # Diviseur de 50k
     else:
-        device = torch.device("cpu")
+        device = "cpu"  # Pass as STRING
         print("⚠️ NO GPU DETECTED - Using CPU (THIS WILL BE SLOW!)")
         n_proc = 6
         minibatch_size = 50_000
