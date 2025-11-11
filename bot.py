@@ -100,7 +100,7 @@ if __name__ == "__main__":
 
     # Configuration manuelle - ajustez selon votre machine
     # RTX 4090 + 96 CPU cores = machine de guerre ! On passe à 48 processus
-    n_proc = 24  # Utilise 50% des CPU cores (48/96) pour équilibrer avec le GPU
+    n_proc = 32  # Utilise 50% des CPU cores (48/96) pour équilibrer avec le GPU
     minibatch_size = 50_000  # Doit être un diviseur de ppo_batch_size (50k)
     device = "cuda:0"  # "cuda:0" pour GPU, "cpu" pour CPU
 
