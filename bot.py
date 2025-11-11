@@ -90,16 +90,30 @@ if __name__ == "__main__":
     
     metrics_logger = ExampleLogger()
 
-    # Auto-detect GPU for faster training (network size stays the same to keep checkpoints)
-    has_gpu = torch.cuda.is_available()
-    if has_gpu:
-        print(f"🚀 GPU detected: {torch.cuda.get_device_name(0)}")
-        print(f"   VRAM: {torch.cuda.get_device_properties(0).total_memory / 1e9:.1f} GB")
-        n_proc = 8  # More processes with GPU
-        minibatch_size = 25_000  # Smaller batches for VRAM
+    # Force GPU usage - explicit device configuration
+    if torch.cuda.is_available():
+        device = torch.device("cuda:0")
+        gpu_vram = torch.cuda.get_device_properties(0).total_memory / 1e9
+        print(f"🚀 GPU FORCED: {torch.cuda.get_device_name(0)}")
+        print(f"   VRAM: {gpu_vram:.1f} GB")
+        print(f"   Device: {device}")
+        
+        # Optimize based on VRAM size
+        if gpu_vram >= 20:  # 24GB GPU
+            print("   ⚡ High VRAM detected - Using optimized settings")
+            n_proc = 12
+            minibatch_size = 50_000
+        elif gpu_vram >= 10:  # RTX 3060/3080 (12GB)
+            print("   ⚡ Medium VRAM - Optimized for 12GB")
+            n_proc = 10
+            minibatch_size = 35_000
+        else:  # 8GB
+            n_proc = 8
+            minibatch_size = 25_000
     else:
-        print("💻 No GPU detected, using CPU")
-        n_proc = 6  # i5 8600K has 6 cores
+        device = torch.device("cpu")
+        print("⚠️ NO GPU DETECTED - Using CPU (THIS WILL BE SLOW!)")
+        n_proc = 6
         minibatch_size = 50_000
 
     # Keep network size constant to preserve checkpoints
@@ -137,6 +151,9 @@ if __name__ == "__main__":
                       min_inference_size=min_inference_size,
                       metrics_logger=metrics_logger,
                       
+                      # FORCE GPU DEVICE
+                      device=device,
+                      
                       # Data collection settings
                       ts_per_iteration=50_000,  # Start with 50k, increase to 100k once bot hits ball consistently
                       exp_buffer_size=150_000,  # 3x ts_per_iteration for better learning
@@ -168,7 +185,7 @@ if __name__ == "__main__":
                       
                       # Rendering - turn OFF for faster training, turn ON to watch
                       render=False,  # Set to True when you want to watch, False for max speed
-                      render_delay=STEP_TIME / 2,  # 2x speed when rendering is enabled
+                      render_delay=STEP_TIME,  # 2x speed when rendering is enabled
                       
                       # Logging
                       log_to_wandb=True)
