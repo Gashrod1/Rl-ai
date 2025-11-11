@@ -87,7 +87,7 @@ if __name__ == "__main__":
     metrics_logger = ExampleLogger()
 
     # 8 processes
-    n_proc = 6
+    n_proc = 8
 
     # educated guess - could be slightly higher or lower
     min_inference_size = max(1, int(round(n_proc * 0.9)))
