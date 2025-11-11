@@ -105,7 +105,7 @@ def build_rocketsim_env():
     timeout_ticks = int(round(timeout_seconds * GAME_TICK_RATE / TICK_SKIP))
 
     action_parser = ContinuousAction()
-    terminal_conditions = [NoTouchTimeoutCondition(timeout_ticks)]#GoalScoredCondition()
+    terminal_conditions = [NoTouchTimeoutCondition(timeout_ticks),GoalScoredCondition()]
     
     # RandomState for better training - cars and ball spawn with random positions/velocities
     # cars_on_ground=False means cars spawn airborne 50% of the time
