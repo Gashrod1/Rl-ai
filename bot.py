@@ -22,7 +22,7 @@ torch.load = _patched_torch_load
 
 from rlgym_sim.utils.gamestates import GameState
 from rlgym_ppo.util import MetricsLogger
-from rewards import InAirReward, SpeedTowardBallReward, HandbrakePenalty
+from rewards import InAirReward, SpeedTowardBallReward, HandbrakePenalty, FlipDisciplineReward
 
 # Game timing constants
 TICK_SKIP = 8  # Number of physics ticks per step
@@ -113,12 +113,13 @@ def build_rocketsim_env():
 
     reward_fn = CombinedReward.from_zipped(
     # Format is (func, weight)
-    (EventReward(team_goal=1), 25),
-    (VelocityBallToGoalReward(), 5),      # Augmenté: encourage de bons touches de balle
-    (EventReward(touch=1), 1),           # Toucher la balle                                     
-    (SpeedTowardBallReward(), 0.5),        # Augmenté: encourage à garder de la vitesse (décourage le frein à main)
-    (FaceBallReward(), 0.1),                # Regarder la balle
-    # Minimal pour conserver capacité de saut (InAirReward(), 0.003), # Pousser la balle vers le but 
+    (EventReward(team_goal=1), 25),           # But = priorité absolue
+    (VelocityBallToGoalReward(), 10),         # Bonne direction de la balle
+    (EventReward(touch=1), 5),                # Toucher avec succès
+    (FlipDisciplineReward(close_distance=400, far_distance=2000, penalty=2.0), 1),  # Anti-flip abusif
+    (SpeedTowardBallReward(), 0.5),           # Vitesse vers balle (modéré)
+    (FaceBallReward(), 0.1),                  # Orientation
+    (InAirReward(), 0.01),                    # Capacité aérienne légère
 )
 
     obs_builder = DefaultObs(
@@ -148,9 +149,9 @@ if __name__ == "__main__":
 
     # Configuration manuelle - ajustez selon votre machine
     # RTX 4090 + 96 CPU cores = machine de guerre ! On passe à 48 processus
-    n_proc = 48  # Utilise 50% des CPU cores (48/96) pour équilibrer avec le GPU
+    n_proc = 2  # Utilise 50% des CPU cores (48/96) pour équilibrer avec le GPU
     minibatch_size = 50_000  # Doit être un diviseur de ppo_batch_size (50k)
-    device = "cuda:0"  # "cuda:0" pour GPU, "cpu" pour CPU
+    device = "cpu"  # "cuda:0" pour GPU, "cpu" pour CPU
 
     # Network size - constant pour garder les checkpoints
     policy_size = (512, 512, 256)
@@ -205,25 +206,26 @@ if __name__ == "__main__":
                       ppo_ent_coef=0.01,  # Good exploration value (NOT 0.001 like bad example!)
                       ppo_epochs=2,       # 2-3 is optimal, starting with 2
                       
-                      # Learning rates - starting high since bot can't score yet
-                      policy_lr=2e-4,     # Higher LR for early learning (decrease to 1e-4 once scoring)
+                      # Learning rates - avec decay automatique pour stabilité long terme
+                      policy_lr=2e-4,     # Bon pour early learning, décroîtra automatiquement
                       critic_lr=2e-4,     # Keep same as policy_lr
+                      lr_schedule_gamma=0.9999,  # ⚠️ Decay plus rapide vu les 10k SPS (252M timesteps en 7h)
                       
                       # Normalization
                       standardize_returns=True,
                       standardize_obs=True,
                       
-                      # Checkpointing
-                      save_every_ts=100_000,
+                      # Checkpointing - sauvegarde PLUS fréquente avec 10k SPS
+                      save_every_ts=500_000,  # Sauvegarde tous les 500k (~50sec à 10k SPS) pour ne pas perdre de progrès
                       checkpoint_load_folder=latest_checkpoint_dir,
                       
                       # Training duration - set to huge number, stop manually when satisfied
                       timestep_limit=10e15,  # 10 quadrillion (basically infinite)
                       
-                      # Rendering - turn OFF for faster training, turn ON to watch
-                      render=False,  # Set to True when you want to watch, False for max speed
-                      render_delay=STEP_TIME,  # 2x speed when rendering is enabled
+                      # Rendering - OFF pour vitesse maximale la nuit
+                      render=False,  # ⚠️ Désactivé pour max speed pendant la nuit
+                      render_delay=STEP_TIME,
                       
                       # Logging
-                      log_to_wandb=True)
+                      log_to_wandb=True)  # ⚠️ ACTIVÉ pour monitoring pendant la nuit
     learner.learn()

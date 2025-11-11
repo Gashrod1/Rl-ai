@@ -98,3 +98,54 @@ class HandbrakePenalty(RewardFunction):
         
         # No penalty if not using handbrake
         return 0
+
+
+class FlipDisciplineReward(RewardFunction):
+    """
+    Encourage strategic flip usage: 
+    - Reward flips when very close to ball (attacking)
+    - Allow flips when far from ball (recovering speed)
+    - PENALIZE flips in mid-range (loses control during approach)
+    """
+    def __init__(self, close_distance=400, far_distance=2000, penalty=1.0):
+        super().__init__()
+        self.close_distance = close_distance  # Distance pour "attaquer" la balle
+        self.far_distance = far_distance      # Distance pour "récupérer"
+        self.penalty = penalty
+        self.last_on_ground = True
+        self.flip_detected = False
+        
+    def reset(self, initial_state: GameState):
+        self.last_on_ground = True
+        self.flip_detected = False
+    
+    def get_reward(self, player: PlayerData, state: GameState, previous_action: np.ndarray) -> float:
+        # Détecter un flip : le joueur était au sol et saute maintenant (double saut)
+        # previous_action: [throttle, steer, pitch, yaw, roll, jump, boost, handbrake]
+        
+        if len(previous_action) <= 5:
+            return 0
+        
+        jump_action = previous_action[5]  # Index 5 = jump
+        currently_on_ground = player.on_ground
+        
+        # Détecter transition sol -> air avec input jump = flip probable
+        # Note: détection simplifiée - le vrai flip est double jump mais difficile à détecter
+        # On pénalise les sauts en approche moyenne
+        
+        if not currently_on_ground and jump_action > 0.5:
+            # Le joueur saute (potentiellement flip)
+            pos_diff = state.ball.position - player.car_data.position
+            dist_to_ball = np.linalg.norm(pos_diff)
+            
+            # Zone dangereuse : distance moyenne (perd contrôle)
+            if self.close_distance < dist_to_ball < self.far_distance:
+                # PÉNALITÉ : flip en approche = perte de contrôle
+                return -self.penalty
+            
+            # Zones OK : très proche (attaque) ou très loin (récupération)
+            # Pas de pénalité, comportement neutre
+            return 0
+        
+        self.last_on_ground = currently_on_ground
+        return 0

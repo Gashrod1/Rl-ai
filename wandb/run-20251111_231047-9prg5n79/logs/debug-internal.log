@@ -1,0 +1,13 @@
+{"time":"2025-11-11T23:10:49.4865492+01:00","level":"INFO","msg":"stream: starting","core version":"0.22.3"}
+{"time":"2025-11-11T23:10:49.835342+01:00","level":"INFO","msg":"stream: created new stream","id":"9prg5n79"}
+{"time":"2025-11-11T23:10:49.8363591+01:00","level":"INFO","msg":"handler: started","stream_id":"9prg5n79"}
+{"time":"2025-11-11T23:10:49.8379733+01:00","level":"INFO","msg":"stream: started","id":"9prg5n79"}
+{"time":"2025-11-11T23:10:49.8385193+01:00","level":"INFO","msg":"writer: started","stream_id":"9prg5n79"}
+{"time":"2025-11-11T23:10:49.8385193+01:00","level":"INFO","msg":"sender: started","stream_id":"9prg5n79"}
+{"time":"2025-11-11T23:23:03.819016+01:00","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2025-11-11T23:23:04.0820477+01:00","level":"INFO","msg":"stream: closing","id":"9prg5n79"}
+{"time":"2025-11-11T23:23:04.0820477+01:00","level":"INFO","msg":"handler: closed","stream_id":"9prg5n79"}
+{"time":"2025-11-11T23:23:04.0825523+01:00","level":"ERROR","msg":"sender: sendSummary called after exit"}
+{"time":"2025-11-11T23:23:04.0853131+01:00","level":"WARN","msg":"sender: received Exit record more than once, ignoring"}
+{"time":"2025-11-11T23:23:04.0853131+01:00","level":"INFO","msg":"sender: closed","stream_id":"9prg5n79"}
+{"time":"2025-11-11T23:23:04.0858547+01:00","level":"INFO","msg":"stream: closed","id":"9prg5n79"}
