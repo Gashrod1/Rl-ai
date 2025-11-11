@@ -119,7 +119,7 @@ def build_rocketsim_env():
     (FlipDisciplineReward(close_distance=400, far_distance=2000, penalty=2.0), 1),  # Anti-flip abusif
     (SpeedTowardBallReward(), 0.5),           # Vitesse vers balle (modéré)
     (FaceBallReward(), 0.1),                  # Orientation
-    (InAirReward(), 0.01),                    # Capacité aérienne légère
+    (InAirReward(), 0.001),                    # Capacité aérienne légère
 )
 
     obs_builder = DefaultObs(
@@ -149,9 +149,9 @@ if __name__ == "__main__":
 
     # Configuration manuelle - ajustez selon votre machine
     # RTX 4090 + 96 CPU cores = machine de guerre ! On passe à 48 processus
-    n_proc = 2  # Utilise 50% des CPU cores (48/96) pour équilibrer avec le GPU
+    n_proc = 48  # Utilise 50% des CPU cores (48/96) pour équilibrer avec le GPU
     minibatch_size = 50_000  # Doit être un diviseur de ppo_batch_size (50k)
-    device = "cpu"  # "cuda:0" pour GPU, "cpu" pour CPU
+    device = "cuda:0"  # "cuda:0" pour GPU, "cpu" pour CPU
 
     # Network size - constant pour garder les checkpoints
     policy_size = (512, 512, 256)
@@ -206,10 +206,9 @@ if __name__ == "__main__":
                       ppo_ent_coef=0.01,  # Good exploration value (NOT 0.001 like bad example!)
                       ppo_epochs=2,       # 2-3 is optimal, starting with 2
                       
-                      # Learning rates - avec decay automatique pour stabilité long terme
-                      policy_lr=2e-4,     # Bon pour early learning, décroîtra automatiquement
+                      # Learning rates - constants (pas de decay automatique dans rlgym_ppo)
+                      policy_lr=2e-4,     # Bon pour early learning
                       critic_lr=2e-4,     # Keep same as policy_lr
-                      lr_schedule_gamma=0.9999,  # ⚠️ Decay plus rapide vu les 10k SPS (252M timesteps en 7h)
                       
                       # Normalization
                       standardize_returns=True,
@@ -223,9 +222,9 @@ if __name__ == "__main__":
                       timestep_limit=10e15,  # 10 quadrillion (basically infinite)
                       
                       # Rendering - OFF pour vitesse maximale la nuit
-                      render=False,  # ⚠️ Désactivé pour max speed pendant la nuit
+                      render=False,
                       render_delay=STEP_TIME,
                       
                       # Logging
-                      log_to_wandb=True)  # ⚠️ ACTIVÉ pour monitoring pendant la nuit
+                      log_to_wandb=True)
     learner.learn()
