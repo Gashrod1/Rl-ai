@@ -1,5 +1,15 @@
 import numpy as np
 import os
+import torch
+# Monkey-patch torch.load to always use CPU mapping when CUDA is not available
+# This fixes the "Attempting to deserialize object on a CUDA device" error
+_original_torch_load = torch.load
+def _patched_torch_load(*args, **kwargs):
+    if not torch.cuda.is_available() and 'map_location' not in kwargs:
+        kwargs['map_location'] = torch.device('cpu')
+    return _original_torch_load(*args, **kwargs)
+torch.load = _patched_torch_load
+
 from rlgym_sim.utils.gamestates import GameState
 from rlgym_ppo.util import MetricsLogger
 from rewards import InAirReward, SpeedTowardBallReward, HandbrakePenalty
@@ -56,12 +66,11 @@ def build_rocketsim_env():
 
     reward_fn = CombinedReward.from_zipped(
     # Format is (func, weight)
-    (EventReward(touch=1), 50),           # Toucher la balle
-    (VelocityBallToGoalReward(), 10),     # Pousser la balle vers le but
+    (EventReward(touch=1), 75),           # Toucher la balle                                     
     (SpeedTowardBallReward(), 15),        # Augmenté: encourage à garder de la vitesse (décourage le frein à main)
     (FaceBallReward(), 1),                # Regarder la balle
-    (InAirReward(), 0.003),               # Minimal pour conserver capacité de saut
     (HandbrakePenalty(), 1)               # NOUVEAU: pénalise l'usage excessif du frein à main
+    # Minimal pour conserver capacité de saut (InAirReward(), 0.003), # Pousser la balle vers le but (VelocityBallToGoalReward(), 10)
 )
 
     obs_builder = DefaultObs(
@@ -122,6 +131,7 @@ if __name__ == "__main__":
     except Exception:
         # If anything goes wrong (missing folder, permissions, etc.), leave None so learner won't try to load
         latest_checkpoint_dir = None
+
 
 
     learner = Learner(build_rocketsim_env,
