@@ -1,6 +1,16 @@
 import numpy as np
 import os
 import torch
+
+# CRITICAL: Verify CUDA is available
+print(f"PyTorch version: {torch.__version__}")
+print(f"CUDA available: {torch.cuda.is_available()}")
+if torch.cuda.is_available():
+    print(f"CUDA device: {torch.cuda.get_device_name(0)}")
+    print(f"CUDA version: {torch.version.cuda}")
+else:
+    print("WARNING: CUDA NOT AVAILABLE - Training will be VERY slow on CPU!")
+
 # Monkey-patch torch.load to always use CPU mapping when CUDA is not available
 # This fixes the "Attempting to deserialize object on a CUDA device" error
 _original_torch_load = torch.load
