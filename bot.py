@@ -31,7 +31,34 @@ STEP_TIME = TICK_SKIP / GAME_TICK_RATE  # Time between steps in seconds (8/120 =
 
 
 class ExampleLogger(MetricsLogger):
+    def __init__(self):
+        super().__init__()
+        self.prev_ball_toucher = None
+        self.prev_blue_score = 0
+        self.prev_orange_score = 0
+        self.total_touches = 0
+        self.total_goals = 0
+        self.episode_touches = 0
+        self.episode_goals = 0
+        
     def _collect_metrics(self, game_state: GameState) -> list:
+        # Détecter les touches (quand last_touch change)
+        if game_state.last_touch != self.prev_ball_toucher and game_state.last_touch != -1:
+            self.total_touches += 1
+            self.episode_touches += 1
+            self.prev_ball_toucher = game_state.last_touch
+            
+        # Détecter les buts
+        if game_state.blue_score > self.prev_blue_score:
+            self.total_goals += 1
+            self.episode_goals += 1
+            self.prev_blue_score = game_state.blue_score
+            
+        if game_state.orange_score > self.prev_orange_score:
+            self.total_goals += 1
+            self.episode_goals += 1
+            self.prev_orange_score = game_state.orange_score
+        
         return [game_state.players[0].car_data.linear_velocity,
                 game_state.players[0].car_data.rotation_mtx(),
                 game_state.orange_score]
@@ -42,10 +69,20 @@ class ExampleLogger(MetricsLogger):
             p0_linear_velocity = metric_array[0]
             avg_linvel += p0_linear_velocity
         avg_linvel /= len(collected_metrics)
+        
         report = {"x_vel":avg_linvel[0],
                   "y_vel":avg_linvel[1],
                   "z_vel":avg_linvel[2],
+                  "total_touches": self.total_touches,
+                  "total_goals": self.total_goals,
+                  "episode_touches": self.episode_touches,
+                  "episode_goals": self.episode_goals,
                   "Cumulative Timesteps":cumulative_timesteps}
+        
+        # Reset episode stats après le report
+        self.episode_touches = 0
+        self.episode_goals = 0
+        
         wandb_run.log(report)
 
 
@@ -76,11 +113,12 @@ def build_rocketsim_env():
 
     reward_fn = CombinedReward.from_zipped(
     # Format is (func, weight)
-    (EventReward(touch=1), 75),           # Toucher la balle                                     
-    (SpeedTowardBallReward(), 15),        # Augmenté: encourage à garder de la vitesse (décourage le frein à main)
-    (FaceBallReward(), 1),                # Regarder la balle
-    (HandbrakePenalty(), 1)               # NOUVEAU: pénalise l'usage excessif du frein à main
-    # Minimal pour conserver capacité de saut (InAirReward(), 0.003), # Pousser la balle vers le but (VelocityBallToGoalReward(), 10)
+    (EventReward(team_goal=1), 25),
+    (VelocityBallToGoalReward(), 5),      # Augmenté: encourage de bons touches de balle
+    (EventReward(touch=1), 1),           # Toucher la balle                                     
+    (SpeedTowardBallReward(), 0.5),        # Augmenté: encourage à garder de la vitesse (décourage le frein à main)
+    (FaceBallReward(), 0.1),                # Regarder la balle
+    # Minimal pour conserver capacité de saut (InAirReward(), 0.003), # Pousser la balle vers le but 
 )
 
     obs_builder = DefaultObs(
