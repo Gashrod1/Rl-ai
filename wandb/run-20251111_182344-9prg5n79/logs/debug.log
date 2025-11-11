@@ -1,0 +1,39 @@
+2025-11-11 18:23:44,782 INFO    MainThread:53703 [wandb_setup.py:_flush():81] Current SDK version is 0.22.3
+2025-11-11 18:23:44,783 INFO    MainThread:53703 [wandb_setup.py:_flush():81] Configure stats pid to 53703
+2025-11-11 18:23:44,783 INFO    MainThread:53703 [wandb_setup.py:_flush():81] Loading settings from /root/.config/wandb/settings
+2025-11-11 18:23:44,783 INFO    MainThread:53703 [wandb_setup.py:_flush():81] Loading settings from /workspace/Rl-ai/wandb/settings
+2025-11-11 18:23:44,783 INFO    MainThread:53703 [wandb_setup.py:_flush():81] Loading settings from environment variables
+2025-11-11 18:23:44,783 INFO    MainThread:53703 [wandb_init.py:setup_run_log_directory():706] Logging user logs to /workspace/Rl-ai/wandb/run-20251111_182344-9prg5n79/logs/debug.log
+2025-11-11 18:23:44,783 INFO    MainThread:53703 [wandb_init.py:setup_run_log_directory():707] Logging internal logs to /workspace/Rl-ai/wandb/run-20251111_182344-9prg5n79/logs/debug-internal.log
+2025-11-11 18:23:44,783 INFO    MainThread:53703 [wandb_init.py:init():833] calling init triggers
+2025-11-11 18:23:44,783 INFO    MainThread:53703 [wandb_init.py:init():838] wandb.init called with sweep_config: {}
+config: {'n_proc': 6, 'min_inference_size': 5, 'timestep_limit': 1e+16, 'exp_buffer_size': 150000, 'ts_per_iteration': 50000, 'standardize_returns': True, 'standardize_obs': True, 'policy_layer_sizes': [512, 512, 256], 'critic_layer_sizes': [512, 512, 256], 'ppo_epochs': 2, 'ppo_batch_size': 50000, 'ppo_minibatch_size': 50000, 'ppo_ent_coef': 0.01, 'ppo_clip_range': 0.2, 'gae_lambda': 0.95, 'gae_gamma': 0.99, 'policy_lr': 0.0002, 'critic_lr': 0.0002, 'shm_buffer_size': 8192, '_wandb': {}}
+2025-11-11 18:23:44,783 INFO    MainThread:53703 [wandb_init.py:init():881] starting backend
+2025-11-11 18:23:44,994 INFO    MainThread:53703 [wandb_init.py:init():884] sending inform_init request
+2025-11-11 18:23:45,003 INFO    MainThread:53703 [wandb_init.py:init():892] backend started and connected
+2025-11-11 18:23:45,005 INFO    MainThread:53703 [wandb_init.py:init():962] updated telemetry
+2025-11-11 18:23:45,015 INFO    MainThread:53703 [wandb_init.py:init():986] communicating run to backend with 90.0 second timeout
+2025-11-11 18:23:45,547 WARNING MainThread:53703 [wandb_init.py:init():1588] [no run ID] interrupted
+Traceback (most recent call last):
+  File "/venv/main/lib/python3.12/site-packages/wandb/sdk/wandb_init.py", line 1579, in init
+    run = wi.init(run_settings, run_config, run_printer)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/venv/main/lib/python3.12/site-packages/wandb/sdk/wandb_init.py", line 997, in init
+    result = wait_with_progress(
+             ^^^^^^^^^^^^^^^^^^^
+  File "/venv/main/lib/python3.12/site-packages/wandb/sdk/mailbox/wait_with_progress.py", line 23, in wait_with_progress
+    return wait_all_with_progress(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/venv/main/lib/python3.12/site-packages/wandb/sdk/mailbox/wait_with_progress.py", line 77, in wait_all_with_progress
+    return asyncer.run(progress_loop_with_timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/venv/main/lib/python3.12/site-packages/wandb/sdk/lib/asyncio_manager.py", line 136, in run
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/venv/main/lib/python3.12/concurrent/futures/_base.py", line 451, in result
+    self._condition.wait(timeout)
+  File "/venv/main/lib/python3.12/threading.py", line 355, in wait
+    waiter.acquire()
+KeyboardInterrupt
+2025-11-11 18:23:45,556 INFO    wandb-AsyncioManager-main:53703 [service_client.py:_forward_responses():80] Reached EOF.
+2025-11-11 18:23:45,556 INFO    wandb-AsyncioManager-main:53703 [mailbox.py:close():137] Closing mailbox, abandoning 1 handles.
