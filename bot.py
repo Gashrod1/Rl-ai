@@ -86,37 +86,15 @@ def build_rocketsim_env():
 
 if __name__ == "__main__":
     from rlgym_ppo import Learner
-    import torch
     
     metrics_logger = ExampleLogger()
 
-    # Force GPU usage - explicit device configuration
-    if torch.cuda.is_available():
-        device = "cuda:0"  # Pass as STRING not torch.device object
-        gpu_vram = torch.cuda.get_device_properties(0).total_memory / 1e9
-        print(f"🚀 GPU FORCED: {torch.cuda.get_device_name(0)}")
-        print(f"   VRAM: {gpu_vram:.1f} GB")
-        print(f"   Device: {device}")
-        
-        # Optimize based on VRAM size
-        if gpu_vram >= 20:  # 24GB GPU
-            print("   ⚡ High VRAM detected - Using optimized settings")
-            n_proc = 12
-            minibatch_size = 50_000  # Diviseur de 50k
-        elif gpu_vram >= 10:  # RTX 3060/3080 (12GB)
-            print("   ⚡ Medium VRAM - Optimized for 12GB")
-            n_proc = 10
-            minibatch_size = 25_000  # Diviseur de 50k (50k / 25k = 2)
-        else:  # 8GB
-            n_proc = 8
-            minibatch_size = 25_000  # Diviseur de 50k
-    else:
-        device = "cpu"  # Pass as STRING
-        print("⚠️ NO GPU DETECTED - Using CPU (THIS WILL BE SLOW!)")
-        n_proc = 6
-        minibatch_size = 50_000
+    # Configuration manuelle - ajustez selon votre machine
+    n_proc = 12  # Nombre de processus (12 pour GPU puissant, 6 pour CPU)
+    minibatch_size = 50_000  # Doit être un diviseur de ppo_batch_size (50k)
+    device = "cuda:0"  # "cuda:0" pour GPU, "cpu" pour CPU
 
-    # Keep network size constant to preserve checkpoints
+    # Network size - constant pour garder les checkpoints
     policy_size = (512, 512, 256)
     critic_size = (512, 512, 256)
 
