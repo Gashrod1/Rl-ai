@@ -173,42 +173,56 @@ if __name__ == "__main__":
     
     try:
         if USE_SELFPLAY:
-            # STRATÉGIE: Charger le dernier checkpoint disponible (auto-continue)
-            # 1. D'abord chercher un run self-play existant (rlgym-ppo-run-XXX récent)
-            # 2. Sinon, utiliser le checkpoint transféré (selfplay_transfer)
+            # STRATÉGIE pour self-play:
+            # 1. Chercher d'abord si selfplay_transfer existe (premier démarrage)
+            # 2. Sinon, chercher un run self-play en cours (continuation)
+            # Note: On vérifie selfplay_transfer EN PREMIER pour éviter de charger
+            #       par erreur un ancien checkpoint 1v0 incompatible
             
+            selfplay_transfer_path = os.path.join(checkpoint_base, "selfplay_transfer")
+            selfplay_run_found = False
+            
+            # Vérifier si un run de self-play existe APRÈS selfplay_transfer
             if os.path.isdir(checkpoint_base):
                 run_dirs = [d for d in os.listdir(checkpoint_base) 
                            if d.startswith("rlgym-ppo-run") and os.path.isdir(os.path.join(checkpoint_base, d))]
                 
-                # Trouver le run le plus récent
-                if run_dirs:
-                    latest_run = max(run_dirs, key=lambda d: os.path.getmtime(os.path.join(checkpoint_base, d)))
-                    latest_run_dir = os.path.join(checkpoint_base, latest_run)
+                if run_dirs and os.path.isdir(selfplay_transfer_path):
+                    # Comparer les dates: si un run est plus récent que selfplay_transfer, c'est un run de self-play
+                    transfer_time = os.path.getmtime(selfplay_transfer_path)
                     
-                    checkpoint_subdirs = [d for d in os.listdir(latest_run_dir) 
-                                         if d.isdigit() and os.path.isdir(os.path.join(latest_run_dir, d))]
-                    if checkpoint_subdirs:
-                        latest_checkpoint = max(checkpoint_subdirs, key=int)
-                        latest_checkpoint_dir = os.path.join(latest_run_dir, latest_checkpoint)
-                        print(f"📂 Continuation depuis: {latest_checkpoint_dir}")
-                        print(f"   Steps: {latest_checkpoint}")
-                
-                # Si aucun run trouvé, chercher le checkpoint transféré (premier démarrage)
-                if not latest_checkpoint_dir:
-                    selfplay_path = os.path.join(checkpoint_base, "selfplay_transfer")
-                    if os.path.isdir(selfplay_path):
-                        checkpoint_subdirs = [d for d in os.listdir(selfplay_path) 
-                                             if d.isdigit() and os.path.isdir(os.path.join(selfplay_path, d))]
+                    # Trouver les runs créés APRÈS le transfer (ce sont des runs de self-play)
+                    selfplay_runs = [d for d in run_dirs 
+                                    if os.path.getmtime(os.path.join(checkpoint_base, d)) > transfer_time]
+                    
+                    if selfplay_runs:
+                        # Prendre le plus récent des runs de self-play
+                        latest_run = max(selfplay_runs, key=lambda d: os.path.getmtime(os.path.join(checkpoint_base, d)))
+                        latest_run_dir = os.path.join(checkpoint_base, latest_run)
+                        
+                        checkpoint_subdirs = [d for d in os.listdir(latest_run_dir) 
+                                             if d.isdigit() and os.path.isdir(os.path.join(latest_run_dir, d))]
                         if checkpoint_subdirs:
                             latest_checkpoint = max(checkpoint_subdirs, key=int)
-                            latest_checkpoint_dir = os.path.join(selfplay_path, latest_checkpoint)
-                            print(f"📂 Premier démarrage self-play depuis: {latest_checkpoint_dir}")
-                            print(f"   Steps transférés: {latest_checkpoint}")
-                        else:
-                            print("⚠️  Aucun checkpoint transféré. Lancez: python transfer_to_selfplay.py")
+                            latest_checkpoint_dir = os.path.join(latest_run_dir, latest_checkpoint)
+                            selfplay_run_found = True
+                            print(f"📂 Continuation self-play depuis: {latest_checkpoint_dir}")
+                            print(f"   Steps: {latest_checkpoint}")
+            
+            # Si aucun run de self-play trouvé, utiliser le checkpoint transféré
+            if not selfplay_run_found:
+                if os.path.isdir(selfplay_transfer_path):
+                    checkpoint_subdirs = [d for d in os.listdir(selfplay_transfer_path) 
+                                         if d.isdigit() and os.path.isdir(os.path.join(selfplay_transfer_path, d))]
+                    if checkpoint_subdirs:
+                        latest_checkpoint = max(checkpoint_subdirs, key=int)
+                        latest_checkpoint_dir = os.path.join(selfplay_transfer_path, latest_checkpoint)
+                        print(f"📂 Premier démarrage self-play depuis: {latest_checkpoint_dir}")
+                        print(f"   Steps transférés: {latest_checkpoint}")
                     else:
-                        print("⚠️  Dossier selfplay_transfer non trouvé. Lancez: python transfer_to_selfplay.py")
+                        print("⚠️  Aucun checkpoint transféré. Lancez: python transfer_to_selfplay.py")
+                else:
+                    print("⚠️  Dossier selfplay_transfer non trouvé. Lancez: python transfer_to_selfplay.py")
         else:
             # Mode 1v0: Chercher le checkpoint original
             if os.path.isdir(checkpoint_base):
