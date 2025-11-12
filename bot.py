@@ -113,14 +113,13 @@ def build_rocketsim_env():
 
     reward_fn = CombinedReward.from_zipped(
     # Format is (func, weight)
-    (EventReward(team_goal=1), 25),           # But = priorité absolue
-    (VelocityBallToGoalReward(), 10),         # Bonne direction de la balle
+    (EventReward(team_goal=1), 45),           # But = priorité absolue
+    (VelocityBallToGoalReward(), 15),         # Bonne direction de la balle
     (EventReward(touch=1), 5),                # Toucher avec succès
     (FlipDisciplineReward(close_distance=400, far_distance=2000, penalty=2.0), 1),  # Anti-flip abusif
     (SpeedTowardBallReward(), 0.5),           # Vitesse vers balle (modéré)
     (FaceBallReward(), 0.1),                  # Orientation
-    (InAirReward(), 0.001),                    # Capacité aérienne légère
-)
+)  # Capacité aérienne légère (InAirReward(), 0.001),
 
     obs_builder = DefaultObs(
         pos_coef=np.asarray([1 / common_values.SIDE_WALL_X, 1 / common_values.BACK_NET_Y, 1 / common_values.CEILING_Z]),
@@ -153,12 +152,11 @@ if __name__ == "__main__":
     minibatch_size = 50_000  # Doit être un diviseur de ppo_batch_size (50k)
     device = "cuda:0"  # "cuda:0" pour GPU, "cpu" pour CPU
 
-    # Network size - constant pour garder les checkpoints
     policy_size = (512, 512, 256)
     critic_size = (512, 512, 256)
 
     # educated guess - could be slightly higher or lower
-    min_inference_size = max(1, int(round(n_proc * 0.75)))  # 0.75 au lieu de 0.9 pour plus de vitesse
+    min_inference_size = max(1, int(round(n_proc * 0.75)))
 
     # Discover latest checkpoint/run folder under data/checkpoints.
     latest_checkpoint_dir = None
