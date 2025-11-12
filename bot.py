@@ -130,8 +130,7 @@ def build_rocketsim_env():
     
     # Terminal conditions
     terminal_conditions = [
-        NoTouchTimeoutCondition(timeout_ticks),
-        GoalScoredCondition()
+        NoTouchTimeoutCondition(timeout_ticks)
     ]
     
     # State setter with randomization for robust learning
@@ -209,6 +208,61 @@ def find_latest_checkpoint() -> str | None:
         return None
 
 
+def check_checkpoint_device_compatibility(checkpoint_path: str) -> bool:
+    """
+    Check if a checkpoint can be loaded on the current device.
+    
+    Args:
+        checkpoint_path: Path to checkpoint directory
+        
+    Returns:
+        True if checkpoint is compatible with current device, False otherwise
+    """
+    if not checkpoint_path:
+        return False
+    
+    try:
+        # Check if we have CUDA available
+        cuda_available = torch.cuda.is_available()
+        
+        # Try to peek at one of the checkpoint files to detect device
+        checkpoint_dir = Path(checkpoint_path)
+        
+        # Look for policy or critic checkpoint files
+        policy_file = checkpoint_dir / "policy.pt"
+        critic_file = checkpoint_dir / "critic.pt"
+        
+        test_file = None
+        if policy_file.exists():
+            test_file = policy_file
+        elif critic_file.exists():
+            test_file = critic_file
+        
+        if test_file:
+            # Try to load just the keys to check device without loading full model
+            # If this fails due to CUDA/CPU mismatch, we catch it
+            if cuda_available:
+                # If we have CUDA, we can load anything
+                return True
+            else:
+                # If we're on CPU, try loading with CPU mapping
+                try:
+                    # Test load with CPU mapping
+                    _ = torch.load(test_file, map_location=torch.device('cpu'))
+                    return True
+                except RuntimeError as e:
+                    if "CUDA" in str(e) and "cpu" in str(e).lower():
+                        return False
+                    raise
+        
+        # If we can't determine, be conservative
+        return cuda_available
+        
+    except Exception as e:
+        print(f"Warning: Could not check checkpoint compatibility: {e}")
+        return False
+
+
 if __name__ == "__main__":
     from rlgym_ppo import Learner
     
@@ -217,7 +271,7 @@ if __name__ == "__main__":
     
     # ===== HARDWARE CONFIGURATION =====
     # Adjust based on your system (RTX 4090 + 96 cores)
-    N_PROC = 48  # 50% of CPU cores for balanced CPU/GPU usage
+    N_PROC = 2  # 50% of CPU cores for balanced CPU/GPU usage
     DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
     
     # ===== NETWORK ARCHITECTURE =====
@@ -238,6 +292,15 @@ if __name__ == "__main__":
     # ===== CHECKPOINTING =====
     SAVE_EVERY_TS = 500_000  # Save every ~5 iterations
     checkpoint_folder = find_latest_checkpoint()
+    
+    # Check if checkpoint is compatible with current device
+    if checkpoint_folder and not check_checkpoint_device_compatibility(checkpoint_folder):
+        print(f"⚠️  Warning: Found checkpoint at {checkpoint_folder}")
+        print(f"⚠️  But it's not compatible with current device (CUDA available: {torch.cuda.is_available()})")
+        print(f"⚠️  Checkpoint was likely saved on a different device.")
+        print(f"⚠️  Starting fresh training to avoid device mismatch errors.")
+        print(f"⚠️  To force load: Set checkpoint_folder manually or use device='auto'")
+        checkpoint_folder = None
     
     if checkpoint_folder:
         print(f"📂 Resuming from: {checkpoint_folder}")
@@ -286,7 +349,7 @@ if __name__ == "__main__":
         timestep_limit=1e15,  # Infinite - stop manually
         
         # Rendering
-        render=False,
+        render=True,
         render_delay=STEP_TIME,
         
         # Logging
