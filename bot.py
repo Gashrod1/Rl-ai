@@ -97,10 +97,8 @@ def build_rocketsim_env():
     from rlgym_sim.utils import common_values
     from rlgym_sim.utils.action_parsers import ContinuousAction
 
-    # CONFIGURATION: Set spawn_opponents based on your training stage
-    # - False (obs_size=70): Initial training to learn ball touches and basic mechanics
-    # - True (obs_size=89): Competitive training against opponents
-    spawn_opponents = True  # Changed to True for opponent training
+    # As requested: single-agent training with no opponents
+    spawn_opponents = False
     team_size = 1
     # User requested timeout between 10 and 15 seconds. Use a midpoint by default.
     timeout_seconds = 12
@@ -142,100 +140,15 @@ def build_rocketsim_env():
 
     return env
 
-def transfer_70_to_89_checkpoint(checkpoint_dir_70):
-    """
-    Transfer learning: Adapt a 70-dim checkpoint to work with 89-dim observations.
-    The first 70 observations are the same, the last 19 are opponent data (will be learned from scratch).
-    
-    This modifies the policy network's first layer to accept 89 inputs instead of 70.
-    The existing weights for the first 70 features are preserved.
-    """
-    import torch
-    
-    policy_path = os.path.join(checkpoint_dir_70, "policy.pt")
-    if not os.path.exists(policy_path):
-        print(f"⚠️  No policy.pt found in {checkpoint_dir_70}, skipping transfer learning.")
-        return None
-    
-    print(f"\n{'='*60}")
-    print(f"🔍 Checking checkpoint: {checkpoint_dir_70}")
-    
-    try:
-        checkpoint = torch.load(policy_path, map_location='cpu')
-    except Exception as e:
-        print(f"❌ Error loading checkpoint: {e}")
-        return None
-    
-    # Check if first layer needs resizing
-    first_layer_key = None
-    for key in checkpoint.keys():
-        if 'weight' in key and len(checkpoint[key].shape) == 2:
-            first_layer_key = key
-            break
-    
-    if first_layer_key is None:
-        print("⚠️  Could not find first layer in checkpoint")
-        return None
-    
-    old_weight = checkpoint[first_layer_key]
-    old_in_features = old_weight.shape[1]
-    old_out_features = old_weight.shape[0]
-    
-    print(f"📊 Current checkpoint input dimension: {old_in_features}")
-    
-    if old_in_features == 70:
-        print(f"🔄 TRANSFER LEARNING: Expanding from 70 to 89 dimensions")
-        print(f"   ✅ First 70 features: PRESERVED (your trained skills)")
-        print(f"   🆕 Last 19 features: NEW (opponent data, will learn)")
-        
-        # Create new weight tensor with 89 input features
-        new_weight = torch.zeros((old_out_features, 89))
-        # Copy existing weights for first 70 features
-        new_weight[:, :70] = old_weight
-        # Initialize new weights for features 70-88 with small random values
-        torch.nn.init.xavier_uniform_(new_weight[:, 70:])
-        
-        checkpoint[first_layer_key] = new_weight
-        
-        # Save modified checkpoint to a new location
-        transfer_dir = checkpoint_dir_70 + "_transferred_to_89"
-        os.makedirs(transfer_dir, exist_ok=True)
-        torch.save(checkpoint, os.path.join(transfer_dir, "policy.pt"))
-        
-        # Copy other files if they exist
-        import shutil
-        for filename in ["critic.pt", "optim_policy.pt", "optim_critic.pt"]:
-            src = os.path.join(checkpoint_dir_70, filename)
-            if os.path.exists(src):
-                shutil.copy(src, os.path.join(transfer_dir, filename))
-        
-        print(f"💾 Transferred checkpoint saved to:")
-        print(f"   {transfer_dir}")
-        print(f"{'='*60}\n")
-        return transfer_dir
-        
-    elif old_in_features == 89:
-        print(f"✅ Checkpoint already has 89 dimensions - ready for 1v1!")
-        print(f"{'='*60}\n")
-        return checkpoint_dir_70
-        
-    else:
-        print(f"⚠️  Unexpected input dimension: {old_in_features}")
-        print(f"   Expected 70 (1v0) or 89 (1v1)")
-        print(f"   Will NOT load this checkpoint to avoid errors")
-        print(f"{'='*60}\n")
-        return None
-
-
 if __name__ == "__main__":
     from rlgym_ppo import Learner
     
     metrics_logger = ExampleLogger()
 
     # Configuration manuelle - ajustez selon votre machine
-    n_proc = 86  # Utilise 50% des CPU cores (48/96) pour équilibrer avec le GPU
+    n_proc = 2  # Utilise 50% des CPU cores (48/96) pour équilibrer avec le GPU
     minibatch_size = 50_000  # Doit être un diviseur de ppo_batch_size (50k)
-    device = "cuda:0"  # "cuda:0" pour GPU, "cpu" pour CPU
+    device = "cpu"  # "cuda:0" pour GPU, "cpu" pour CPU
 
     policy_size = (512, 512, 256)
     critic_size = (512, 512, 256)
@@ -261,12 +174,8 @@ if __name__ == "__main__":
                     # Sort by the numeric value to get the highest checkpoint number
                     latest_checkpoint = max(checkpoint_subdirs, key=int)
                     latest_checkpoint_dir = os.path.join(latest_run_dir, latest_checkpoint)
-                    
-                    # TRANSFER LEARNING: If we found a 70-dim checkpoint, adapt it for 89-dim
-                    latest_checkpoint_dir = transfer_70_to_89_checkpoint(latest_checkpoint_dir)
-    except Exception as e:
+    except Exception:
         # If anything goes wrong (missing folder, permissions, etc.), leave None so learner won't try to load
-        print(f"Error loading checkpoint: {e}")
         latest_checkpoint_dir = None
 
 
@@ -309,7 +218,7 @@ if __name__ == "__main__":
                       timestep_limit=10e15,  # 10 quadrillion (basically infinite)
                       
                       # Rendering - OFF pour vitesse maximale la nuit
-                      render=False,
+                      render=True,
                       render_delay=STEP_TIME,
                       
                       # Logging
