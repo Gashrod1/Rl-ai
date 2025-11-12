@@ -29,6 +29,11 @@ TICK_SKIP = 8  # Number of physics ticks per step
 GAME_TICK_RATE = 120  # Rocket League runs at 120 ticks per second
 STEP_TIME = TICK_SKIP / GAME_TICK_RATE  # Time between steps in seconds (8/120 = 0.0667 seconds)
 
+# ========== CONFIGURATION MODE ==========
+# Mode 1: Continue 1v0 (pas d'adversaire) - utilise checkpoint original
+# Mode 2: Self-play 1v1 - nécessite de lancer transfer_to_selfplay.py d'abord
+USE_SELFPLAY = True  # Changez à True pour activer le self-play
+
 
 class ExampleLogger(MetricsLogger):
     def __init__(self):
@@ -97,9 +102,15 @@ def build_rocketsim_env():
     from rlgym_sim.utils import common_values
     from rlgym_sim.utils.action_parsers import ContinuousAction
 
-    # As requested: single-agent training with no opponents
-    spawn_opponents = False
-    team_size = 1
+    if USE_SELFPLAY:
+        spawn_opponents = True
+        team_size = 1
+        print("🎮 Mode: SELF-PLAY (1v1)")
+    else:
+        spawn_opponents = False
+        team_size = 1
+        print("🎮 Mode: SOLO (1v0)")
+    
     # User requested timeout between 10 and 15 seconds. Use a midpoint by default.
     timeout_seconds = 12
     timeout_ticks = int(round(timeout_seconds * GAME_TICK_RATE / TICK_SKIP))
@@ -146,8 +157,7 @@ if __name__ == "__main__":
     metrics_logger = ExampleLogger()
 
     # Configuration manuelle - ajustez selon votre machine
-    # RTX 4090 + 96 CPU cores = machine de guerre ! On passe à 48 processus
-    n_proc = 48  # Utilise 50% des CPU cores (48/96) pour équilibrer avec le GPU
+    n_proc = 86  # Utilise 50% des CPU cores (48/96) pour équilibrer avec le GPU
     minibatch_size = 50_000  # Doit être un diviseur de ppo_batch_size (50k)
     device = "cuda:0"  # "cuda:0" pour GPU, "cpu" pour CPU
 
@@ -157,26 +167,42 @@ if __name__ == "__main__":
     # educated guess - could be slightly higher or lower
     min_inference_size = max(1, int(round(n_proc * 0.75)))
 
-    # Discover latest checkpoint/run folder under data/checkpoints.
+    # Charger le checkpoint approprié selon le mode
     latest_checkpoint_dir = None
     checkpoint_base = os.path.join("data", "checkpoints")
+    
     try:
-        # Find directories starting with the common prefix used by rlgym-ppo runs
-        if os.path.isdir(checkpoint_base):
-            run_dirs = [d for d in os.listdir(checkpoint_base) if d.startswith("rlgym-ppo-run") and os.path.isdir(os.path.join(checkpoint_base, d))]
-            if run_dirs:
-                # Choose the most recently modified run directory (robust to different naming schemes)
-                latest_run = max(run_dirs, key=lambda d: os.path.getmtime(os.path.join(checkpoint_base, d)))
-                latest_run_dir = os.path.join(checkpoint_base, latest_run)
-                
-                # Within the run directory, find the latest numbered checkpoint subdirectory
-                checkpoint_subdirs = [d for d in os.listdir(latest_run_dir) if d.isdigit() and os.path.isdir(os.path.join(latest_run_dir, d))]
+        if USE_SELFPLAY:
+            # Chercher le checkpoint transféré pour self-play
+            selfplay_path = os.path.join(checkpoint_base, "selfplay_transfer")
+            if os.path.isdir(selfplay_path):
+                checkpoint_subdirs = [d for d in os.listdir(selfplay_path) 
+                                     if d.isdigit() and os.path.isdir(os.path.join(selfplay_path, d))]
                 if checkpoint_subdirs:
-                    # Sort by the numeric value to get the highest checkpoint number
                     latest_checkpoint = max(checkpoint_subdirs, key=int)
-                    latest_checkpoint_dir = os.path.join(latest_run_dir, latest_checkpoint)
-    except Exception:
-        # If anything goes wrong (missing folder, permissions, etc.), leave None so learner won't try to load
+                    latest_checkpoint_dir = os.path.join(selfplay_path, latest_checkpoint)
+                    print(f"📂 Chargement checkpoint self-play: {latest_checkpoint_dir}")
+                else:
+                    print("⚠️  Aucun checkpoint self-play trouvé. Lancez d'abord: python transfer_to_selfplay.py")
+            else:
+                print("⚠️  Dossier selfplay_transfer non trouvé. Lancez d'abord: python transfer_to_selfplay.py")
+        else:
+            # Chercher le checkpoint original (1v0)
+            if os.path.isdir(checkpoint_base):
+                run_dirs = [d for d in os.listdir(checkpoint_base) 
+                           if d.startswith("rlgym-ppo-run") and os.path.isdir(os.path.join(checkpoint_base, d))]
+                if run_dirs:
+                    latest_run = max(run_dirs, key=lambda d: os.path.getmtime(os.path.join(checkpoint_base, d)))
+                    latest_run_dir = os.path.join(checkpoint_base, latest_run)
+                    
+                    checkpoint_subdirs = [d for d in os.listdir(latest_run_dir) 
+                                         if d.isdigit() and os.path.isdir(os.path.join(latest_run_dir, d))]
+                    if checkpoint_subdirs:
+                        latest_checkpoint = max(checkpoint_subdirs, key=int)
+                        latest_checkpoint_dir = os.path.join(latest_run_dir, latest_checkpoint)
+                        print(f"📂 Chargement checkpoint 1v0: {latest_checkpoint_dir}")
+    except Exception as e:
+        print(f"⚠️  Erreur lors du chargement du checkpoint: {e}")
         latest_checkpoint_dir = None
 
 
@@ -185,6 +211,10 @@ if __name__ == "__main__":
                       n_proc=n_proc,
                       min_inference_size=min_inference_size,
                       metrics_logger=metrics_logger,
+                      
+                      # SELF-PLAY: Le bot s'entraîne contre lui-même
+                      # Pas besoin de spécifier agent_2 - il utilisera automatiquement
+                      # le même modèle pour les deux joueurs (self-play)
                       
                       # FORCE GPU DEVICE
                       device=device,
