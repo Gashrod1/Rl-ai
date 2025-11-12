@@ -151,7 +151,7 @@ if __name__ == "__main__":
     metrics_logger = ExampleLogger()
 
     # Configuration manuelle - ajustez selon votre machine
-    n_proc = 80  # Utilise 50% des CPU cores (48/96) pour équilibrer avec le GPU
+    n_proc = 48  # Utilise 50% des CPU cores (48/96) pour équilibrer avec le GPU
     minibatch_size = 50_000  # Doit être un diviseur de ppo_batch_size (50k)
     device = "cuda:0"  # "cuda:0" pour GPU, "cpu" pour CPU
 
