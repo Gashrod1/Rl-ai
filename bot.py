@@ -1,228 +1,314 @@
+"""
+Modern RLGym-PPO training setup for Rocket League bot.
+Uses latest best practices: padded observations, proper reward shaping, wandb logging.
+"""
 import numpy as np
 import os
+from pathlib import Path
 import torch
 
-# CRITICAL: Verify CUDA is available
-print(f"PyTorch version: {torch.__version__}")
-print(f"CUDA available: {torch.cuda.is_available()}")
+# CUDA verification
+print(f"PyTorch {torch.__version__} | CUDA: {torch.cuda.is_available()}")
 if torch.cuda.is_available():
-    print(f"CUDA device: {torch.cuda.get_device_name(0)}")
-    print(f"CUDA version: {torch.version.cuda}")
+    print(f"GPU: {torch.cuda.get_device_name(0)} (CUDA {torch.version.cuda})")
 else:
-    print("WARNING: CUDA NOT AVAILABLE - Training will be VERY slow on CPU!")
-
-# Monkey-patch torch.load to always use CPU mapping when CUDA is not available
-# This fixes the "Attempting to deserialize object on a CUDA device" error
-_original_torch_load = torch.load
-def _patched_torch_load(*args, **kwargs):
-    if not torch.cuda.is_available() and 'map_location' not in kwargs:
-        kwargs['map_location'] = torch.device('cpu')
-    return _original_torch_load(*args, **kwargs)
-torch.load = _patched_torch_load
+    print("⚠️  CPU mode - training will be slow!")
 
 from rlgym_sim.utils.gamestates import GameState
 from rlgym_ppo.util import MetricsLogger
-from rewards import InAirReward, SpeedTowardBallReward, HandbrakePenalty, FlipDisciplineReward
+from rewards import SpeedTowardBallReward, FlipDisciplineReward
 
 # Game timing constants
-TICK_SKIP = 8  # Number of physics ticks per step
-GAME_TICK_RATE = 120  # Rocket League runs at 120 ticks per second
-STEP_TIME = TICK_SKIP / GAME_TICK_RATE  # Time between steps in seconds (8/120 = 0.0667 seconds)
+TICK_SKIP = 8  # Physics ticks per step (8 is standard for most training)
+GAME_TICK_RATE = 120  # Rocket League physics rate
+STEP_TIME = TICK_SKIP / GAME_TICK_RATE  # 0.0667 seconds per step
 
 
-class ExampleLogger(MetricsLogger):
+class ModernMetricsLogger(MetricsLogger):
+    """Enhanced metrics tracking for training progress."""
+    
     def __init__(self):
         super().__init__()
         self.prev_ball_toucher = None
         self.prev_blue_score = 0
         self.prev_orange_score = 0
-        self.total_touches = 0
-        self.total_goals = 0
-        self.episode_touches = 0
-        self.episode_goals = 0
+        self.cumulative_touches = 0
+        self.cumulative_goals = 0
+        self.interval_touches = 0
+        self.interval_goals = 0
         
     def _collect_metrics(self, game_state: GameState) -> list:
-        # Détecter les touches (quand last_touch change)
+        """Collect per-step metrics from game state."""
+        # Track ball touches
         if game_state.last_touch != self.prev_ball_toucher and game_state.last_touch != -1:
-            self.total_touches += 1
-            self.episode_touches += 1
+            self.cumulative_touches += 1
+            self.interval_touches += 1
             self.prev_ball_toucher = game_state.last_touch
-            
-        # Détecter les buts
+        
+        # Track goals scored
         if game_state.blue_score > self.prev_blue_score:
-            self.total_goals += 1
-            self.episode_goals += 1
+            self.cumulative_goals += 1
+            self.interval_goals += 1
             self.prev_blue_score = game_state.blue_score
-            
+        
         if game_state.orange_score > self.prev_orange_score:
-            self.total_goals += 1
-            self.episode_goals += 1
+            self.cumulative_goals += 1
+            self.interval_goals += 1
             self.prev_orange_score = game_state.orange_score
         
-        return [game_state.players[0].car_data.linear_velocity,
-                game_state.players[0].car_data.rotation_mtx(),
-                game_state.orange_score]
+        # Collect player data (safely handle multiple agents)
+        if len(game_state.players) > 0:
+            player = game_state.players[0]
+            return [
+                player.car_data.linear_velocity,
+                player.car_data.position,
+                game_state.ball.position,
+                np.linalg.norm(player.car_data.linear_velocity)  # Speed scalar
+            ]
+        return [np.zeros(3), np.zeros(3), np.zeros(3), 0.0]
 
     def _report_metrics(self, collected_metrics, wandb_run, cumulative_timesteps):
-        avg_linvel = np.zeros(3)
-        for metric_array in collected_metrics:
-            p0_linear_velocity = metric_array[0]
-            avg_linvel += p0_linear_velocity
-        avg_linvel /= len(collected_metrics)
+        """Aggregate and report metrics to wandb."""
+        if not collected_metrics:
+            return
         
-        report = {"x_vel":avg_linvel[0],
-                  "y_vel":avg_linvel[1],
-                  "z_vel":avg_linvel[2],
-                  "total_touches": self.total_touches,
-                  "total_goals": self.total_goals,
-                  "episode_touches": self.episode_touches,
-                  "episode_goals": self.episode_goals,
-                  "Cumulative Timesteps":cumulative_timesteps}
+        # Calculate averages
+        velocities = np.array([m[0] for m in collected_metrics])
+        speeds = np.array([m[3] for m in collected_metrics])
         
-        # Reset episode stats après le report
-        self.episode_touches = 0
-        self.episode_goals = 0
+        avg_velocity = velocities.mean(axis=0)
+        avg_speed = speeds.mean()
+        max_speed = speeds.max()
+        
+        report = {
+            "performance/avg_speed": avg_speed,
+            "performance/max_speed": max_speed,
+            "performance/avg_velocity_x": avg_velocity[0],
+            "performance/avg_velocity_y": avg_velocity[1],
+            "performance/avg_velocity_z": avg_velocity[2],
+            "gameplay/cumulative_touches": self.cumulative_touches,
+            "gameplay/cumulative_goals": self.cumulative_goals,
+            "gameplay/interval_touches": self.interval_touches,
+            "gameplay/interval_goals": self.interval_goals,
+            "training/timesteps": cumulative_timesteps,
+        }
+        
+        # Reset interval stats
+        self.interval_touches = 0
+        self.interval_goals = 0
         
         wandb_run.log(report)
 
 
 def build_rocketsim_env():
+    """Build a modern RocketSim environment with best practices."""
     import rlgym_sim
     from rlgym_sim.utils.reward_functions import CombinedReward
-    from rlgym_sim.utils.reward_functions.common_rewards import VelocityPlayerToBallReward, VelocityBallToGoalReward, \
-        EventReward, FaceBallReward
-    from rlgym_sim.utils.obs_builders import DefaultObs
-    from rlgym_sim.utils.terminal_conditions.common_conditions import NoTouchTimeoutCondition, GoalScoredCondition
+    from rlgym_sim.utils.reward_functions.common_rewards import (
+        VelocityBallToGoalReward,
+        EventReward,
+        FaceBallReward
+    )
+    from rlgym_sim.utils.terminal_conditions.common_conditions import (
+        NoTouchTimeoutCondition,
+        GoalScoredCondition
+    )
     from rlgym_sim.utils.state_setters import RandomState
-    from rlgym_sim.utils import common_values
     from rlgym_sim.utils.action_parsers import ContinuousAction
+    from rlgym_ppo.util import AdvancedObsPadder
 
-    # As requested: single-agent training with no opponents
-    spawn_opponents = False
+    # Training configuration
+    spawn_opponents = False  # 1v0 training
     team_size = 1
-    # User requested timeout between 10 and 15 seconds. Use a midpoint by default.
     timeout_seconds = 12
-    timeout_ticks = int(round(timeout_seconds * GAME_TICK_RATE / TICK_SKIP))
+    timeout_ticks = int(timeout_seconds * GAME_TICK_RATE / TICK_SKIP)
 
+    # Modern action parser (continuous control)
     action_parser = ContinuousAction()
-    terminal_conditions = [NoTouchTimeoutCondition(timeout_ticks),GoalScoredCondition()]
     
-    # RandomState for better training - cars and ball spawn with random positions/velocities
-    # cars_on_ground=False means cars spawn airborne 50% of the time
-    state_setter = RandomState(ball_rand_speed=True, cars_rand_speed=True, cars_on_ground=False)
+    # Terminal conditions
+    terminal_conditions = [
+        NoTouchTimeoutCondition(timeout_ticks),
+        GoalScoredCondition()
+    ]
+    
+    # State setter with randomization for robust learning
+    state_setter = RandomState(
+        ball_rand_speed=True,
+        cars_rand_speed=True,
+        cars_on_ground=False  # 50% aerial spawns
+    )
 
+    # Modern reward function (well-balanced weights)
     reward_fn = CombinedReward.from_zipped(
-    # Format is (func, weight)
-    (EventReward(team_goal=1), 45),           # But = priorité absolue
-    (VelocityBallToGoalReward(), 15),         # Bonne direction de la balle
-    (EventReward(touch=1), 5),                # Toucher avec succès
-    (FlipDisciplineReward(close_distance=400, far_distance=2000, penalty=2.0), 1),  # Anti-flip abusif
-    (SpeedTowardBallReward(), 0.5),           # Vitesse vers balle (modéré)
-    (FaceBallReward(), 0.1),                  # Orientation
-)  # Capacité aérienne légère (InAirReward(), 0.001),
+        (EventReward(team_goal=1.0), 100.0),      # Goals are the objective
+        (VelocityBallToGoalReward(), 15.0),       # Ball toward goal
+        (EventReward(touch=1.0), 5.0),            # Successful touches
+        (FlipDisciplineReward(                     # Prevent flip spam
+            close_distance=400,
+            far_distance=2000,
+            penalty=2.0
+        ), 1.0),
+        (SpeedTowardBallReward(), 0.5),           # Approach ball
+        (FaceBallReward(), 0.1),                  # Ball awareness
+    )
 
-    obs_builder = DefaultObs(
-        pos_coef=np.asarray([1 / common_values.SIDE_WALL_X, 1 / common_values.BACK_NET_Y, 1 / common_values.CEILING_Z]),
-        ang_coef=1 / np.pi,
-        lin_vel_coef=1 / common_values.CAR_MAX_SPEED,
-        ang_vel_coef=1 / common_values.CAR_MAX_ANG_VEL)
+    # MODERN: Padded observations for scalability
+    # Supports variable team sizes (1v0 → 3v3) without retraining
+    obs_builder = AdvancedObsPadder(
+        team_size=3,           # Pad for up to 3v3
+        tick_skip=TICK_SKIP    # Temporal info
+    )
 
-    env = rlgym_sim.make(tick_skip=TICK_SKIP,
-                         team_size=team_size,
-                         spawn_opponents=spawn_opponents,
-                         terminal_conditions=terminal_conditions,
-                         reward_fn=reward_fn,
-                         obs_builder=obs_builder,
-                         action_parser=action_parser,
-                         state_setter=state_setter)
+    env = rlgym_sim.make(
+        tick_skip=TICK_SKIP,
+        team_size=team_size,
+        spawn_opponents=spawn_opponents,
+        terminal_conditions=terminal_conditions,
+        reward_fn=reward_fn,
+        obs_builder=obs_builder,
+        action_parser=action_parser,
+        state_setter=state_setter
+    )
     
-    import rocketsimvis_rlgym_sim_client as rsv
-    type(env).render = lambda self: rsv.send_state_to_rocketsimvis(self._prev_state)
+    # Optional: RocketSimVis rendering support
+    try:
+        import rocketsimvis_rlgym_sim_client as rsv
+        type(env).render = lambda self: rsv.send_state_to_rocketsimvis(self._prev_state)
+    except ImportError:
+        pass  # RocketSimVis not available
 
     return env
+
+def find_latest_checkpoint() -> str | None:
+    """Find the most recent checkpoint directory."""
+    checkpoint_base = Path("data/checkpoints")
+    
+    if not checkpoint_base.exists():
+        return None
+    
+    try:
+        # Find all run directories
+        run_dirs = [d for d in checkpoint_base.iterdir() 
+                   if d.is_dir() and d.name.startswith("rlgym-ppo-run")]
+        
+        if not run_dirs:
+            return None
+        
+        # Get most recent run
+        latest_run = max(run_dirs, key=lambda d: d.stat().st_mtime)
+        
+        # Find highest checkpoint number
+        checkpoint_subdirs = [d for d in latest_run.iterdir() 
+                             if d.is_dir() and d.name.isdigit()]
+        
+        if not checkpoint_subdirs:
+            return None
+        
+        latest_checkpoint = max(checkpoint_subdirs, key=lambda d: int(d.name))
+        return str(latest_checkpoint)
+    
+    except Exception as e:
+        print(f"Warning: Could not load checkpoint: {e}")
+        return None
+
 
 if __name__ == "__main__":
     from rlgym_ppo import Learner
     
-    metrics_logger = ExampleLogger()
-
-    # Configuration manuelle - ajustez selon votre machine
-    # RTX 4090 + 96 CPU cores = machine de guerre ! On passe à 48 processus
-    n_proc = 48  # Utilise 50% des CPU cores (48/96) pour équilibrer avec le GPU
-    minibatch_size = 50_000  # Doit être un diviseur de ppo_batch_size (50k)
-    device = "cuda:0"  # "cuda:0" pour GPU, "cpu" pour CPU
-
-    policy_size = (512, 512, 256)
-    critic_size = (512, 512, 256)
-
-    # educated guess - could be slightly higher or lower
-    min_inference_size = max(1, int(round(n_proc * 0.75)))
-
-    # Discover latest checkpoint/run folder under data/checkpoints.
-    latest_checkpoint_dir = None
-    checkpoint_base = os.path.join("data", "checkpoints")
-    try:
-        # Find directories starting with the common prefix used by rlgym-ppo runs
-        if os.path.isdir(checkpoint_base):
-            run_dirs = [d for d in os.listdir(checkpoint_base) if d.startswith("rlgym-ppo-run") and os.path.isdir(os.path.join(checkpoint_base, d))]
-            if run_dirs:
-                # Choose the most recently modified run directory (robust to different naming schemes)
-                latest_run = max(run_dirs, key=lambda d: os.path.getmtime(os.path.join(checkpoint_base, d)))
-                latest_run_dir = os.path.join(checkpoint_base, latest_run)
-                
-                # Within the run directory, find the latest numbered checkpoint subdirectory
-                checkpoint_subdirs = [d for d in os.listdir(latest_run_dir) if d.isdigit() and os.path.isdir(os.path.join(latest_run_dir, d))]
-                if checkpoint_subdirs:
-                    # Sort by the numeric value to get the highest checkpoint number
-                    latest_checkpoint = max(checkpoint_subdirs, key=int)
-                    latest_checkpoint_dir = os.path.join(latest_run_dir, latest_checkpoint)
-    except Exception:
-        # If anything goes wrong (missing folder, permissions, etc.), leave None so learner won't try to load
-        latest_checkpoint_dir = None
-
-
-
-    learner = Learner(build_rocketsim_env,
-                      n_proc=n_proc,
-                      min_inference_size=min_inference_size,
-                      metrics_logger=metrics_logger,
-                      
-                      # FORCE GPU DEVICE
-                      device=device,
-                      
-                      # Data collection settings
-                      ts_per_iteration=50_000,  # Start with 50k, increase to 100k once bot hits ball consistently
-                      exp_buffer_size=150_000,  # 3x ts_per_iteration for better learning
-                      ppo_batch_size=50_000,    # Same as ts_per_iteration
-                      ppo_minibatch_size=minibatch_size,  # Auto-adjusted based on GPU/CPU
-                      
-                      # Network architecture - Auto-adjusted based on GPU/CPU
-                      policy_layer_sizes=policy_size,
-                      critic_layer_sizes=critic_size,
-                      
-                      # PPO hyperparameters
-                      ppo_ent_coef=0.01,  # Good exploration value (NOT 0.001 like bad example!)
-                      ppo_epochs=2,       # 2-3 is optimal, starting with 2
-                      
-                      # Learning rates - constants (pas de decay automatique dans rlgym_ppo)
-                      policy_lr=2e-4,     # Bon pour early learning
-                      critic_lr=2e-4,     # Keep same as policy_lr
-                      
-                      # Normalization
-                      standardize_returns=True,
-                      standardize_obs=True,
-                      
-                      # Checkpointing - sauvegarde PLUS fréquente avec 10k SPS
-                      save_every_ts=500_000,  # Sauvegarde tous les 500k (~50sec à 10k SPS) pour ne pas perdre de progrès
-                      checkpoint_load_folder=latest_checkpoint_dir,
-                      
-                      # Training duration - set to huge number, stop manually when satisfied
-                      timestep_limit=10e15,  # 10 quadrillion (basically infinite)
-                      
-                      # Rendering - OFF pour vitesse maximale la nuit
-                      render=False,
-                      render_delay=STEP_TIME,
-                      
-                      # Logging
-                      log_to_wandb=True)
+    # Initialize metrics logger
+    metrics_logger = ModernMetricsLogger()
+    
+    # ===== HARDWARE CONFIGURATION =====
+    # Adjust based on your system (RTX 4090 + 96 cores)
+    N_PROC = 48  # 50% of CPU cores for balanced CPU/GPU usage
+    DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+    
+    # ===== NETWORK ARCHITECTURE =====
+    # Large networks for complex behaviors
+    POLICY_LAYERS = (512, 512, 256)
+    CRITIC_LAYERS = (512, 512, 256)
+    
+    # ===== PPO HYPERPARAMETERS =====
+    TIMESTEPS_PER_ITERATION = 100_000  # Increased from 50k for better sample efficiency
+    BATCH_SIZE = 100_000
+    MINIBATCH_SIZE = 50_000  # Must divide BATCH_SIZE evenly
+    BUFFER_SIZE = 200_000  # 2x batch size
+    
+    LEARNING_RATE = 2e-4  # Standard for early training
+    ENTROPY_COEF = 0.01   # Good exploration
+    PPO_EPOCHS = 2        # 2-3 is optimal
+    
+    # ===== CHECKPOINTING =====
+    SAVE_EVERY_TS = 500_000  # Save every ~5 iterations
+    checkpoint_folder = find_latest_checkpoint()
+    
+    if checkpoint_folder:
+        print(f"📂 Resuming from: {checkpoint_folder}")
+    else:
+        print("🆕 Starting fresh training")
+    
+    # ===== INFERENCE SETTINGS =====
+    min_inference_size = max(1, int(N_PROC * 0.75))
+    
+    # ===== BUILD LEARNER =====
+    learner = Learner(
+        build_rocketsim_env,
+        
+        # Process and device config
+        n_proc=N_PROC,
+        min_inference_size=min_inference_size,
+        device=DEVICE,
+        
+        # Network architecture
+        policy_layer_sizes=POLICY_LAYERS,
+        critic_layer_sizes=CRITIC_LAYERS,
+        
+        # PPO parameters
+        ppo_batch_size=BATCH_SIZE,
+        ppo_minibatch_size=MINIBATCH_SIZE,
+        ppo_epochs=PPO_EPOCHS,
+        ppo_ent_coef=ENTROPY_COEF,
+        
+        # Data collection
+        ts_per_iteration=TIMESTEPS_PER_ITERATION,
+        exp_buffer_size=BUFFER_SIZE,
+        
+        # Learning rates
+        policy_lr=LEARNING_RATE,
+        critic_lr=LEARNING_RATE,
+        
+        # Normalization
+        standardize_returns=True,
+        standardize_obs=True,
+        
+        # Checkpointing
+        save_every_ts=SAVE_EVERY_TS,
+        checkpoint_load_folder=checkpoint_folder,
+        
+        # Training duration
+        timestep_limit=1e15,  # Infinite - stop manually
+        
+        # Rendering
+        render=False,
+        render_delay=STEP_TIME,
+        
+        # Logging
+        metrics_logger=metrics_logger,
+        log_to_wandb=True,
+    )
+    
+    print("\n" + "="*60)
+    print("🚀 TRAINING CONFIGURATION")
+    print("="*60)
+    print(f"Device: {DEVICE}")
+    print(f"Processes: {N_PROC}")
+    print(f"Timesteps/Iteration: {TIMESTEPS_PER_ITERATION:,}")
+    print(f"Batch Size: {BATCH_SIZE:,}")
+    print(f"Network: {POLICY_LAYERS}")
+    print(f"Learning Rate: {LEARNING_RATE}")
+    print(f"Save Every: {SAVE_EVERY_TS:,} timesteps")
+    print("="*60 + "\n")
+    
+    # Start training
     learner.learn()
