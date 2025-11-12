@@ -154,11 +154,17 @@ def transfer_70_to_89_checkpoint(checkpoint_dir_70):
     
     policy_path = os.path.join(checkpoint_dir_70, "policy.pt")
     if not os.path.exists(policy_path):
-        print(f"Warning: No policy.pt found in {checkpoint_dir_70}, skipping transfer learning.")
+        print(f"⚠️  No policy.pt found in {checkpoint_dir_70}, skipping transfer learning.")
         return None
     
-    print(f"Loading 70-dim checkpoint from: {checkpoint_dir_70}")
-    checkpoint = torch.load(policy_path, map_location='cpu')
+    print(f"\n{'='*60}")
+    print(f"🔍 Checking checkpoint: {checkpoint_dir_70}")
+    
+    try:
+        checkpoint = torch.load(policy_path, map_location='cpu')
+    except Exception as e:
+        print(f"❌ Error loading checkpoint: {e}")
+        return None
     
     # Check if first layer needs resizing
     first_layer_key = None
@@ -168,14 +174,20 @@ def transfer_70_to_89_checkpoint(checkpoint_dir_70):
             break
     
     if first_layer_key is None:
-        print("Warning: Could not find first layer in checkpoint, loading as-is.")
-        return checkpoint_dir_70
+        print("⚠️  Could not find first layer in checkpoint")
+        return None
     
     old_weight = checkpoint[first_layer_key]
-    old_in_features, old_out_features = old_weight.shape[1], old_weight.shape[0]
+    old_in_features = old_weight.shape[1]
+    old_out_features = old_weight.shape[0]
+    
+    print(f"📊 Current checkpoint input dimension: {old_in_features}")
     
     if old_in_features == 70:
-        print(f"Transferring weights: expanding input from 70 to 89 dimensions")
+        print(f"🔄 TRANSFER LEARNING: Expanding from 70 to 89 dimensions")
+        print(f"   ✅ First 70 features: PRESERVED (your trained skills)")
+        print(f"   🆕 Last 19 features: NEW (opponent data, will learn)")
+        
         # Create new weight tensor with 89 input features
         new_weight = torch.zeros((old_out_features, 89))
         # Copy existing weights for first 70 features
@@ -191,20 +203,28 @@ def transfer_70_to_89_checkpoint(checkpoint_dir_70):
         torch.save(checkpoint, os.path.join(transfer_dir, "policy.pt"))
         
         # Copy other files if they exist
+        import shutil
         for filename in ["critic.pt", "optim_policy.pt", "optim_critic.pt"]:
             src = os.path.join(checkpoint_dir_70, filename)
             if os.path.exists(src):
-                import shutil
                 shutil.copy(src, os.path.join(transfer_dir, filename))
         
-        print(f"Transfer learning checkpoint saved to: {transfer_dir}")
+        print(f"💾 Transferred checkpoint saved to:")
+        print(f"   {transfer_dir}")
+        print(f"{'='*60}\n")
         return transfer_dir
+        
     elif old_in_features == 89:
-        print("Checkpoint already has 89 input dimensions, using as-is.")
+        print(f"✅ Checkpoint already has 89 dimensions - ready for 1v1!")
+        print(f"{'='*60}\n")
         return checkpoint_dir_70
+        
     else:
-        print(f"Warning: Unexpected input dimension {old_in_features}, using checkpoint as-is.")
-        return checkpoint_dir_70
+        print(f"⚠️  Unexpected input dimension: {old_in_features}")
+        print(f"   Expected 70 (1v0) or 89 (1v1)")
+        print(f"   Will NOT load this checkpoint to avoid errors")
+        print(f"{'='*60}\n")
+        return None
 
 
 if __name__ == "__main__":
