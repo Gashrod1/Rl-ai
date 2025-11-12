@@ -16,7 +16,7 @@ else:
 
 from rlgym_sim.utils.gamestates import GameState
 from rlgym_ppo.util import MetricsLogger
-from rewards import SpeedTowardBallReward, FlipDisciplineReward
+from rewards import SpeedTowardBallReward, FlipDisciplineReward, InAirReward
 
 # Game timing constants
 TICK_SKIP = 8  # Physics ticks per step (8 is standard for most training)
@@ -141,16 +141,10 @@ def build_rocketsim_env():
 
     # Modern reward function (well-balanced weights)
     reward_fn = CombinedReward.from_zipped(
-        (EventReward(team_goal=1.0), 100.0),      # Goals are the objective
-        (VelocityBallToGoalReward(), 15.0),       # Ball toward goal
-        (EventReward(touch=1.0), 5.0),            # Successful touches
-        (FlipDisciplineReward(                     # Prevent flip spam
-            close_distance=400,
-            far_distance=2000,
-            penalty=2.0
-        ), 1.0),
-        (SpeedTowardBallReward(), 0.5),           # Approach ball
-        (FaceBallReward(), 0.1),                  # Ball awareness
+        (EventReward(touch=1.0), 50),            # Successful touches
+        (SpeedTowardBallReward(), 5),           # Approach ball
+        (FaceBallReward(), 1),    
+        (InAirReward(), 0.05)              # Air reward
     )
 
     # MODERN: Padded observations for scalability
