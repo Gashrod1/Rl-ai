@@ -29,11 +29,6 @@ TICK_SKIP = 8  # Number of physics ticks per step
 GAME_TICK_RATE = 120  # Rocket League runs at 120 ticks per second
 STEP_TIME = TICK_SKIP / GAME_TICK_RATE  # Time between steps in seconds (8/120 = 0.0667 seconds)
 
-# ========== CONFIGURATION MODE ==========
-# Mode 1: Continue 1v0 (pas d'adversaire) - utilise checkpoint original
-# Mode 2: Self-play 1v1 - nécessite de lancer transfer_to_selfplay.py d'abord
-USE_SELFPLAY = True  # Changez à True pour activer le self-play
-
 
 class ExampleLogger(MetricsLogger):
     def __init__(self):
@@ -102,15 +97,11 @@ def build_rocketsim_env():
     from rlgym_sim.utils import common_values
     from rlgym_sim.utils.action_parsers import ContinuousAction
 
-    if USE_SELFPLAY:
-        spawn_opponents = True
-        team_size = 1
-        print("🎮 Mode: SELF-PLAY (1v1)")
-    else:
-        spawn_opponents = False
-        team_size = 1
-        print("🎮 Mode: SOLO (1v0)")
-    
+    # CONFIGURATION: Set spawn_opponents based on your training stage
+    # - False (obs_size=70): Initial training to learn ball touches and basic mechanics
+    # - True (obs_size=89): Competitive training against opponents
+    spawn_opponents = True  # Changed to True for opponent training
+    team_size = 1
     # User requested timeout between 10 and 15 seconds. Use a midpoint by default.
     timeout_seconds = 12
     timeout_ticks = int(round(timeout_seconds * GAME_TICK_RATE / TICK_SKIP))
@@ -151,6 +142,71 @@ def build_rocketsim_env():
 
     return env
 
+def transfer_70_to_89_checkpoint(checkpoint_dir_70):
+    """
+    Transfer learning: Adapt a 70-dim checkpoint to work with 89-dim observations.
+    The first 70 observations are the same, the last 19 are opponent data (will be learned from scratch).
+    
+    This modifies the policy network's first layer to accept 89 inputs instead of 70.
+    The existing weights for the first 70 features are preserved.
+    """
+    import torch
+    
+    policy_path = os.path.join(checkpoint_dir_70, "policy.pt")
+    if not os.path.exists(policy_path):
+        print(f"Warning: No policy.pt found in {checkpoint_dir_70}, skipping transfer learning.")
+        return None
+    
+    print(f"Loading 70-dim checkpoint from: {checkpoint_dir_70}")
+    checkpoint = torch.load(policy_path, map_location='cpu')
+    
+    # Check if first layer needs resizing
+    first_layer_key = None
+    for key in checkpoint.keys():
+        if 'weight' in key and len(checkpoint[key].shape) == 2:
+            first_layer_key = key
+            break
+    
+    if first_layer_key is None:
+        print("Warning: Could not find first layer in checkpoint, loading as-is.")
+        return checkpoint_dir_70
+    
+    old_weight = checkpoint[first_layer_key]
+    old_in_features, old_out_features = old_weight.shape[1], old_weight.shape[0]
+    
+    if old_in_features == 70:
+        print(f"Transferring weights: expanding input from 70 to 89 dimensions")
+        # Create new weight tensor with 89 input features
+        new_weight = torch.zeros((old_out_features, 89))
+        # Copy existing weights for first 70 features
+        new_weight[:, :70] = old_weight
+        # Initialize new weights for features 70-88 with small random values
+        torch.nn.init.xavier_uniform_(new_weight[:, 70:])
+        
+        checkpoint[first_layer_key] = new_weight
+        
+        # Save modified checkpoint to a new location
+        transfer_dir = checkpoint_dir_70 + "_transferred_to_89"
+        os.makedirs(transfer_dir, exist_ok=True)
+        torch.save(checkpoint, os.path.join(transfer_dir, "policy.pt"))
+        
+        # Copy other files if they exist
+        for filename in ["critic.pt", "optim_policy.pt", "optim_critic.pt"]:
+            src = os.path.join(checkpoint_dir_70, filename)
+            if os.path.exists(src):
+                import shutil
+                shutil.copy(src, os.path.join(transfer_dir, filename))
+        
+        print(f"Transfer learning checkpoint saved to: {transfer_dir}")
+        return transfer_dir
+    elif old_in_features == 89:
+        print("Checkpoint already has 89 input dimensions, using as-is.")
+        return checkpoint_dir_70
+    else:
+        print(f"Warning: Unexpected input dimension {old_in_features}, using checkpoint as-is.")
+        return checkpoint_dir_70
+
+
 if __name__ == "__main__":
     from rlgym_ppo import Learner
     
@@ -167,79 +223,30 @@ if __name__ == "__main__":
     # educated guess - could be slightly higher or lower
     min_inference_size = max(1, int(round(n_proc * 0.75)))
 
-    # Charger le checkpoint approprié selon le mode
+    # Discover latest checkpoint/run folder under data/checkpoints.
     latest_checkpoint_dir = None
     checkpoint_base = os.path.join("data", "checkpoints")
-    
     try:
-        if USE_SELFPLAY:
-            # STRATÉGIE pour self-play:
-            # 1. Chercher d'abord si selfplay_transfer existe (premier démarrage)
-            # 2. Sinon, chercher un run self-play en cours (continuation)
-            # Note: On vérifie selfplay_transfer EN PREMIER pour éviter de charger
-            #       par erreur un ancien checkpoint 1v0 incompatible
-            
-            selfplay_transfer_path = os.path.join(checkpoint_base, "selfplay_transfer")
-            selfplay_run_found = False
-            
-            # Vérifier si un run de self-play existe APRÈS selfplay_transfer
-            if os.path.isdir(checkpoint_base):
-                run_dirs = [d for d in os.listdir(checkpoint_base) 
-                           if d.startswith("rlgym-ppo-run") and os.path.isdir(os.path.join(checkpoint_base, d))]
+        # Find directories starting with the common prefix used by rlgym-ppo runs
+        if os.path.isdir(checkpoint_base):
+            run_dirs = [d for d in os.listdir(checkpoint_base) if d.startswith("rlgym-ppo-run") and os.path.isdir(os.path.join(checkpoint_base, d))]
+            if run_dirs:
+                # Choose the most recently modified run directory (robust to different naming schemes)
+                latest_run = max(run_dirs, key=lambda d: os.path.getmtime(os.path.join(checkpoint_base, d)))
+                latest_run_dir = os.path.join(checkpoint_base, latest_run)
                 
-                if run_dirs and os.path.isdir(selfplay_transfer_path):
-                    # Comparer les dates: si un run est plus récent que selfplay_transfer, c'est un run de self-play
-                    transfer_time = os.path.getmtime(selfplay_transfer_path)
+                # Within the run directory, find the latest numbered checkpoint subdirectory
+                checkpoint_subdirs = [d for d in os.listdir(latest_run_dir) if d.isdigit() and os.path.isdir(os.path.join(latest_run_dir, d))]
+                if checkpoint_subdirs:
+                    # Sort by the numeric value to get the highest checkpoint number
+                    latest_checkpoint = max(checkpoint_subdirs, key=int)
+                    latest_checkpoint_dir = os.path.join(latest_run_dir, latest_checkpoint)
                     
-                    # Trouver les runs créés APRÈS le transfer (ce sont des runs de self-play)
-                    selfplay_runs = [d for d in run_dirs 
-                                    if os.path.getmtime(os.path.join(checkpoint_base, d)) > transfer_time]
-                    
-                    if selfplay_runs:
-                        # Prendre le plus récent des runs de self-play
-                        latest_run = max(selfplay_runs, key=lambda d: os.path.getmtime(os.path.join(checkpoint_base, d)))
-                        latest_run_dir = os.path.join(checkpoint_base, latest_run)
-                        
-                        checkpoint_subdirs = [d for d in os.listdir(latest_run_dir) 
-                                             if d.isdigit() and os.path.isdir(os.path.join(latest_run_dir, d))]
-                        if checkpoint_subdirs:
-                            latest_checkpoint = max(checkpoint_subdirs, key=int)
-                            latest_checkpoint_dir = os.path.join(latest_run_dir, latest_checkpoint)
-                            selfplay_run_found = True
-                            print(f"📂 Continuation self-play depuis: {latest_checkpoint_dir}")
-                            print(f"   Steps: {latest_checkpoint}")
-            
-            # Si aucun run de self-play trouvé, utiliser le checkpoint transféré
-            if not selfplay_run_found:
-                if os.path.isdir(selfplay_transfer_path):
-                    checkpoint_subdirs = [d for d in os.listdir(selfplay_transfer_path) 
-                                         if d.isdigit() and os.path.isdir(os.path.join(selfplay_transfer_path, d))]
-                    if checkpoint_subdirs:
-                        latest_checkpoint = max(checkpoint_subdirs, key=int)
-                        latest_checkpoint_dir = os.path.join(selfplay_transfer_path, latest_checkpoint)
-                        print(f"📂 Premier démarrage self-play depuis: {latest_checkpoint_dir}")
-                        print(f"   Steps transférés: {latest_checkpoint}")
-                    else:
-                        print("⚠️  Aucun checkpoint transféré. Lancez: python transfer_to_selfplay.py")
-                else:
-                    print("⚠️  Dossier selfplay_transfer non trouvé. Lancez: python transfer_to_selfplay.py")
-        else:
-            # Mode 1v0: Chercher le checkpoint original
-            if os.path.isdir(checkpoint_base):
-                run_dirs = [d for d in os.listdir(checkpoint_base) 
-                           if d.startswith("rlgym-ppo-run") and os.path.isdir(os.path.join(checkpoint_base, d))]
-                if run_dirs:
-                    latest_run = max(run_dirs, key=lambda d: os.path.getmtime(os.path.join(checkpoint_base, d)))
-                    latest_run_dir = os.path.join(checkpoint_base, latest_run)
-                    
-                    checkpoint_subdirs = [d for d in os.listdir(latest_run_dir) 
-                                         if d.isdigit() and os.path.isdir(os.path.join(latest_run_dir, d))]
-                    if checkpoint_subdirs:
-                        latest_checkpoint = max(checkpoint_subdirs, key=int)
-                        latest_checkpoint_dir = os.path.join(latest_run_dir, latest_checkpoint)
-                        print(f"📂 Chargement checkpoint 1v0: {latest_checkpoint_dir}")
+                    # TRANSFER LEARNING: If we found a 70-dim checkpoint, adapt it for 89-dim
+                    latest_checkpoint_dir = transfer_70_to_89_checkpoint(latest_checkpoint_dir)
     except Exception as e:
-        print(f"⚠️  Erreur lors du chargement du checkpoint: {e}")
+        # If anything goes wrong (missing folder, permissions, etc.), leave None so learner won't try to load
+        print(f"Error loading checkpoint: {e}")
         latest_checkpoint_dir = None
 
 
@@ -248,10 +255,6 @@ if __name__ == "__main__":
                       n_proc=n_proc,
                       min_inference_size=min_inference_size,
                       metrics_logger=metrics_logger,
-                      
-                      # SELF-PLAY: Le bot s'entraîne contre lui-même
-                      # Pas besoin de spécifier agent_2 - il utilisera automatiquement
-                      # le même modèle pour les deux joueurs (self-play)
                       
                       # FORCE GPU DEVICE
                       device=device,
@@ -271,8 +274,8 @@ if __name__ == "__main__":
                       ppo_epochs=2,       # 2-3 is optimal, starting with 2
                       
                       # Learning rates - constants (pas de decay automatique dans rlgym_ppo)
-                      policy_lr=2e-4,     # Bon pour early learning
-                      critic_lr=2e-4,     # Keep same as policy_lr
+                      policy_lr=1e-4,     # Bon pour early learning
+                      critic_lr=1e-4,     # Keep same as policy_lr
                       
                       # Normalization
                       standardize_returns=True,
