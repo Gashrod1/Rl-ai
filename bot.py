@@ -120,7 +120,7 @@ def build_rocketsim_env():
     from padded_obs_builder import AdvancedObsPadder
 
     # Training configuration
-    spawn_opponents = False  # 1v0 training
+    spawn_opponents = True
     team_size = 1
     timeout_seconds = 12
     timeout_ticks = int(timeout_seconds * GAME_TICK_RATE / TICK_SKIP)
