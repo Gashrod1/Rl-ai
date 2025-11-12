@@ -17,9 +17,9 @@ def transfer_checkpoint_to_selfplay(checkpoint_path, output_path):
     
     print(f"Loading checkpoint from {checkpoint_path}")
     
-    # Charger les fichiers du checkpoint
-    policy_path = os.path.join(checkpoint_path, "policy.pt")
-    critic_path = os.path.join(checkpoint_path, "critic.pt")
+    # Charger les fichiers du checkpoint (noms utilisés par rlgym-ppo)
+    policy_path = os.path.join(checkpoint_path, "PPO_POLICY.pt")
+    critic_path = os.path.join(checkpoint_path, "PPO_VALUE_NET.pt")
     
     if not os.path.exists(policy_path) or not os.path.exists(critic_path):
         raise FileNotFoundError(f"Checkpoint files not found in {checkpoint_path}")
@@ -70,13 +70,13 @@ def transfer_checkpoint_to_selfplay(checkpoint_path, output_path):
     # Créer le dossier de sortie
     os.makedirs(output_path, exist_ok=True)
     
-    # Sauvegarder les nouveaux state dicts
-    torch.save(policy_state, os.path.join(output_path, "policy.pt"))
-    torch.save(critic_state, os.path.join(output_path, "critic.pt"))
+    # Sauvegarder les nouveaux state dicts avec les bons noms
+    torch.save(policy_state, os.path.join(output_path, "PPO_POLICY.pt"))
+    torch.save(critic_state, os.path.join(output_path, "PPO_VALUE_NET.pt"))
     
     # Copier les autres fichiers du checkpoint s'ils existent
     for filename in os.listdir(checkpoint_path):
-        if filename not in ['policy.pt', 'critic.pt']:
+        if filename not in ['PPO_POLICY.pt', 'PPO_VALUE_NET.pt']:
             src = os.path.join(checkpoint_path, filename)
             dst = os.path.join(output_path, filename)
             if os.path.isfile(src):
