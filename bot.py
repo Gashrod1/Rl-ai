@@ -91,15 +91,21 @@ def build_rocketsim_env():
     from rlgym_sim.utils.reward_functions import CombinedReward
     from rlgym_sim.utils.reward_functions.common_rewards import VelocityPlayerToBallReward, VelocityBallToGoalReward, \
         EventReward, FaceBallReward
-    from rlgym_sim.utils.obs_builders import DefaultObs
+    from rlgym_sim.utils.obs_builders import AdvancedObs
     from rlgym_sim.utils.terminal_conditions.common_conditions import NoTouchTimeoutCondition, GoalScoredCondition
     from rlgym_sim.utils.state_setters import RandomState
     from rlgym_sim.utils import common_values
     from rlgym_sim.utils.action_parsers import ContinuousAction
 
-    # As requested: single-agent training with no opponents
-    spawn_opponents = False
+    # MULTI-MODE CONFIGURATION - Change these to switch game modes
+    # 1v0: team_size=1, spawn_opponents=False  (obs_size=231)
+    # 1v1: team_size=1, spawn_opponents=True   (obs_size=231) 
+    # 2v2: team_size=2, spawn_opponents=True   (obs_size=231)
+    # 3v3: team_size=3, spawn_opponents=True   (obs_size=231)
+    
+    spawn_opponents = False  # Start with 1v0 to learn basics
     team_size = 1
+    
     # User requested timeout between 10 and 15 seconds. Use a midpoint by default.
     timeout_seconds = 12
     timeout_ticks = int(round(timeout_seconds * GAME_TICK_RATE / TICK_SKIP))
@@ -113,18 +119,17 @@ def build_rocketsim_env():
 
     reward_fn = CombinedReward.from_zipped(
     # Format is (func, weight)
-    (EventReward(team_goal=1, concede=-1), 30),           # But = priorité absolue
-    (VelocityBallToGoalReward(), 10),         # Bonne direction de la balle
-    (EventReward(touch=1), 3),                # Toucher avec succès
-    (SpeedTowardBallReward(), 0.5),           # Vitesse vers balle (modéré)
-    (FaceBallReward(), 0.1),                  # Orientation
+                                             # But = priorité absolue (EventReward(team_goal=1, concede=-1), 30),(VelocityBallToGoalReward(), 10),
+                                            # Bonne direction de la balle
+    (EventReward(touch=1), 50),                # Toucher avec succès
+    (SpeedTowardBallReward(), 5),           # Vitesse vers balle (modéré)
+    (FaceBallReward(), 1),
+    (InAirReward(), 0.05),                  # Orientation
 )  # Capacité aérienne légère (InAirReward(), 0.001),
 
-    obs_builder = DefaultObs(
-        pos_coef=np.asarray([1 / common_values.SIDE_WALL_X, 1 / common_values.BACK_NET_Y, 1 / common_values.CEILING_Z]),
-        ang_coef=1 / np.pi,
-        lin_vel_coef=1 / common_values.CAR_MAX_SPEED,
-        ang_vel_coef=1 / common_values.CAR_MAX_ANG_VEL)
+    # AdvancedObs: SAME SIZE for all modes (231-dim)
+    # Works with 1v0, 1v1, 2v2, 3v3 seamlessly!
+    obs_builder = AdvancedObs()
 
     env = rlgym_sim.make(tick_skip=TICK_SKIP,
                          team_size=team_size,
@@ -146,9 +151,9 @@ if __name__ == "__main__":
     metrics_logger = ExampleLogger()
 
     # Configuration manuelle - ajustez selon votre machine
-    n_proc = 2  # Utilise 50% des CPU cores (48/96) pour équilibrer avec le GPU
+    n_proc = 80  # Utilise 50% des CPU cores (48/96) pour équilibrer avec le GPU
     minibatch_size = 50_000  # Doit être un diviseur de ppo_batch_size (50k)
-    device = "cpu"  # "cuda:0" pour GPU, "cpu" pour CPU
+    device = "cuda:0"  # "cuda:0" pour GPU, "cpu" pour CPU
 
     policy_size = (512, 512, 256)
     critic_size = (512, 512, 256)
@@ -156,27 +161,36 @@ if __name__ == "__main__":
     # educated guess - could be slightly higher or lower
     min_inference_size = max(1, int(round(n_proc * 0.75)))
 
-    # Discover latest checkpoint/run folder under data/checkpoints.
+    # CHECKPOINT LOADING CONFIGURATION
+    # Set to True to continue from latest checkpoint
+    # Set to False to start fresh training from scratch
+    load_checkpoint = False  # Changed to False to start fresh with AdvancedObs
+    
     latest_checkpoint_dir = None
-    checkpoint_base = os.path.join("data", "checkpoints")
-    try:
-        # Find directories starting with the common prefix used by rlgym-ppo runs
-        if os.path.isdir(checkpoint_base):
-            run_dirs = [d for d in os.listdir(checkpoint_base) if d.startswith("rlgym-ppo-run") and os.path.isdir(os.path.join(checkpoint_base, d))]
-            if run_dirs:
-                # Choose the most recently modified run directory (robust to different naming schemes)
-                latest_run = max(run_dirs, key=lambda d: os.path.getmtime(os.path.join(checkpoint_base, d)))
-                latest_run_dir = os.path.join(checkpoint_base, latest_run)
-                
-                # Within the run directory, find the latest numbered checkpoint subdirectory
-                checkpoint_subdirs = [d for d in os.listdir(latest_run_dir) if d.isdigit() and os.path.isdir(os.path.join(latest_run_dir, d))]
-                if checkpoint_subdirs:
-                    # Sort by the numeric value to get the highest checkpoint number
-                    latest_checkpoint = max(checkpoint_subdirs, key=int)
-                    latest_checkpoint_dir = os.path.join(latest_run_dir, latest_checkpoint)
-    except Exception:
-        # If anything goes wrong (missing folder, permissions, etc.), leave None so learner won't try to load
-        latest_checkpoint_dir = None
+    if load_checkpoint:
+        checkpoint_base = os.path.join("data", "checkpoints")
+        try:
+            # Find directories starting with the common prefix used by rlgym-ppo runs
+            if os.path.isdir(checkpoint_base):
+                run_dirs = [d for d in os.listdir(checkpoint_base) if d.startswith("rlgym-ppo-run") and os.path.isdir(os.path.join(checkpoint_base, d))]
+                if run_dirs:
+                    # Choose the most recently modified run directory (robust to different naming schemes)
+                    latest_run = max(run_dirs, key=lambda d: os.path.getmtime(os.path.join(checkpoint_base, d)))
+                    latest_run_dir = os.path.join(checkpoint_base, latest_run)
+                    
+                    # Within the run directory, find the latest numbered checkpoint subdirectory
+                    checkpoint_subdirs = [d for d in os.listdir(latest_run_dir) if d.isdigit() and os.path.isdir(os.path.join(latest_run_dir, d))]
+                    if checkpoint_subdirs:
+                        # Sort by the numeric value to get the highest checkpoint number
+                        latest_checkpoint = max(checkpoint_subdirs, key=int)
+                        latest_checkpoint_dir = os.path.join(latest_run_dir, latest_checkpoint)
+                        print(f"📁 Loading checkpoint: {latest_checkpoint_dir}")
+        except Exception as e:
+            # If anything goes wrong (missing folder, permissions, etc.), leave None so learner won't try to load
+            print(f"⚠️  Error loading checkpoint: {e}")
+            latest_checkpoint_dir = None
+    else:
+        print("🆕 Starting fresh training from scratch (no checkpoint loaded)")
 
 
 
@@ -203,8 +217,8 @@ if __name__ == "__main__":
                       ppo_epochs=2,       # 2-3 is optimal, starting with 2
                       
                       # Learning rates - constants (pas de decay automatique dans rlgym_ppo)
-                      policy_lr=1e-4,     # Bon pour early learning
-                      critic_lr=1e-4,     # Keep same as policy_lr
+                      policy_lr=2e-4,     # Bon pour early learning
+                      critic_lr=2e-4,     # Keep same as policy_lr
                       
                       # Normalization
                       standardize_returns=True,
@@ -218,7 +232,7 @@ if __name__ == "__main__":
                       timestep_limit=10e15,  # 10 quadrillion (basically infinite)
                       
                       # Rendering - OFF pour vitesse maximale la nuit
-                      render=True,
+                      render=False,
                       render_delay=STEP_TIME,
                       
                       # Logging
