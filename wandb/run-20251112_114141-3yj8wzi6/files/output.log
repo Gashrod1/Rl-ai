@@ -1,0 +1,52 @@
+Created new wandb run! 3yj8wzi6
+Learner successfully initialized!
+Press (p) to pause (c) to checkpoint, (q) to checkpoint and quit (after next iteration)
+
+--------BEGIN ITERATION REPORT--------
+Policy Reward: 2.32144
+Policy Entropy: 0.80844
+Value Function Loss: nan
+
+Mean KL Divergence: 0.00187
+SB3 Clip Fraction: 0.00983
+Policy Update Magnitude: 0.11278
+Value Function Update Magnitude: 0.12160
+
+Collected Steps per Second: 1,803.03570
+Overall Steps per Second: 1,595.22574
+
+Timestep Collection Time: 27.73101
+Timestep Consumption Time: 3.61252
+PPO Batch Consumption Time: 1.20708
+Total Iteration Time: 31.34353
+
+Cumulative Model Updates: 2
+Cumulative Timesteps: 50,000
+
+Timesteps Collected: 50,000
+--------END ITERATION REPORT--------
+
+
+--------BEGIN ITERATION REPORT--------
+Policy Reward: 4.14553
+Policy Entropy: 0.79878
+Value Function Loss: 46.03220
+
+Mean KL Divergence: 0.00287
+SB3 Clip Fraction: 0.01557
+Policy Update Magnitude: 0.16213
+Value Function Update Magnitude: 0.21919
+
+Collected Steps per Second: 1,882.53535
+Overall Steps per Second: 1,529.16914
+
+Timestep Collection Time: 26.55993
+Timestep Consumption Time: 6.13757
+PPO Batch Consumption Time: 1.22661
+Total Iteration Time: 32.69749
+
+Cumulative Model Updates: 6
+Cumulative Timesteps: 100,000
+
+Timesteps Collected: 50,000
+--------END ITERATION REPORT--------
