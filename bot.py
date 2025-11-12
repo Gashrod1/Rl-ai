@@ -113,10 +113,9 @@ def build_rocketsim_env():
 
     reward_fn = CombinedReward.from_zipped(
     # Format is (func, weight)
-    (EventReward(team_goal=1), 45),           # But = priorité absolue
-    (VelocityBallToGoalReward(), 15),         # Bonne direction de la balle
-    (EventReward(touch=1), 5),                # Toucher avec succès
-    (FlipDisciplineReward(close_distance=400, far_distance=2000, penalty=2.0), 1),  # Anti-flip abusif
+    (EventReward(team_goal=1, concede=-1), 30),           # But = priorité absolue
+    (VelocityBallToGoalReward(), 10),         # Bonne direction de la balle
+    (EventReward(touch=1), 3),                # Toucher avec succès
     (SpeedTowardBallReward(), 0.5),           # Vitesse vers balle (modéré)
     (FaceBallReward(), 0.1),                  # Orientation
 )  # Capacité aérienne légère (InAirReward(), 0.001),
