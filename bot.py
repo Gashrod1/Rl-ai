@@ -115,7 +115,9 @@ def build_rocketsim_env():
     )
     from rlgym_sim.utils.state_setters import RandomState
     from rlgym_sim.utils.action_parsers import ContinuousAction
-    from rlgym_ppo.util import AdvancedObsPadder
+    
+    # Import our custom padded obs builder
+    from padded_obs_builder import AdvancedObsPadder
 
     # Training configuration
     spawn_opponents = False  # 1v0 training
