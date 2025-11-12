@@ -173,21 +173,44 @@ if __name__ == "__main__":
     
     try:
         if USE_SELFPLAY:
-            # Chercher le checkpoint transféré pour self-play
-            selfplay_path = os.path.join(checkpoint_base, "selfplay_transfer")
-            if os.path.isdir(selfplay_path):
-                checkpoint_subdirs = [d for d in os.listdir(selfplay_path) 
-                                     if d.isdigit() and os.path.isdir(os.path.join(selfplay_path, d))]
-                if checkpoint_subdirs:
-                    latest_checkpoint = max(checkpoint_subdirs, key=int)
-                    latest_checkpoint_dir = os.path.join(selfplay_path, latest_checkpoint)
-                    print(f"📂 Chargement checkpoint self-play: {latest_checkpoint_dir}")
-                else:
-                    print("⚠️  Aucun checkpoint self-play trouvé. Lancez d'abord: python transfer_to_selfplay.py")
-            else:
-                print("⚠️  Dossier selfplay_transfer non trouvé. Lancez d'abord: python transfer_to_selfplay.py")
+            # STRATÉGIE: Charger le dernier checkpoint disponible (auto-continue)
+            # 1. D'abord chercher un run self-play existant (rlgym-ppo-run-XXX récent)
+            # 2. Sinon, utiliser le checkpoint transféré (selfplay_transfer)
+            
+            if os.path.isdir(checkpoint_base):
+                run_dirs = [d for d in os.listdir(checkpoint_base) 
+                           if d.startswith("rlgym-ppo-run") and os.path.isdir(os.path.join(checkpoint_base, d))]
+                
+                # Trouver le run le plus récent
+                if run_dirs:
+                    latest_run = max(run_dirs, key=lambda d: os.path.getmtime(os.path.join(checkpoint_base, d)))
+                    latest_run_dir = os.path.join(checkpoint_base, latest_run)
+                    
+                    checkpoint_subdirs = [d for d in os.listdir(latest_run_dir) 
+                                         if d.isdigit() and os.path.isdir(os.path.join(latest_run_dir, d))]
+                    if checkpoint_subdirs:
+                        latest_checkpoint = max(checkpoint_subdirs, key=int)
+                        latest_checkpoint_dir = os.path.join(latest_run_dir, latest_checkpoint)
+                        print(f"📂 Continuation depuis: {latest_checkpoint_dir}")
+                        print(f"   Steps: {latest_checkpoint}")
+                
+                # Si aucun run trouvé, chercher le checkpoint transféré (premier démarrage)
+                if not latest_checkpoint_dir:
+                    selfplay_path = os.path.join(checkpoint_base, "selfplay_transfer")
+                    if os.path.isdir(selfplay_path):
+                        checkpoint_subdirs = [d for d in os.listdir(selfplay_path) 
+                                             if d.isdigit() and os.path.isdir(os.path.join(selfplay_path, d))]
+                        if checkpoint_subdirs:
+                            latest_checkpoint = max(checkpoint_subdirs, key=int)
+                            latest_checkpoint_dir = os.path.join(selfplay_path, latest_checkpoint)
+                            print(f"📂 Premier démarrage self-play depuis: {latest_checkpoint_dir}")
+                            print(f"   Steps transférés: {latest_checkpoint}")
+                        else:
+                            print("⚠️  Aucun checkpoint transféré. Lancez: python transfer_to_selfplay.py")
+                    else:
+                        print("⚠️  Dossier selfplay_transfer non trouvé. Lancez: python transfer_to_selfplay.py")
         else:
-            # Chercher le checkpoint original (1v0)
+            # Mode 1v0: Chercher le checkpoint original
             if os.path.isdir(checkpoint_base):
                 run_dirs = [d for d in os.listdir(checkpoint_base) 
                            if d.startswith("rlgym-ppo-run") and os.path.isdir(os.path.join(checkpoint_base, d))]

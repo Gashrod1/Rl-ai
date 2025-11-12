@@ -80,7 +80,40 @@ def transfer_checkpoint_to_selfplay(checkpoint_path, output_path):
             src = os.path.join(checkpoint_path, filename)
             dst = os.path.join(output_path, filename)
             if os.path.isfile(src):
-                shutil.copy2(src, dst)
+                # Si c'est BOOK_KEEPING_VARS.json, il faut adapter les stats d'observation
+                if filename == 'BOOK_KEEPING_VARS.json':
+                    import json
+                    with open(src, 'r') as f:
+                        book_keeping = json.load(f)
+                    
+                    # Adapter les statistiques d'observation si elles existent
+                    if 'obs_running_stats' in book_keeping:
+                        obs_stats = book_keeping['obs_running_stats']
+                        old_mean = obs_stats.get('mean', [])
+                        old_var = obs_stats.get('var', [])
+                        
+                        if len(old_mean) == old_obs_size:
+                            # Créer de nouvelles stats pour 89 features
+                            new_mean = [0.0] * new_obs_size
+                            new_var = [1.0] * new_obs_size
+                            
+                            # Copier les anciennes stats pour les 70 premières features
+                            for i in range(old_obs_size):
+                                new_mean[i] = old_mean[i]
+                                new_var[i] = old_var[i]
+                            
+                            # Les 19 nouvelles features gardent mean=0, var=1 (normalisé)
+                            obs_stats['mean'] = new_mean
+                            obs_stats['var'] = new_var
+                            obs_stats['shape'] = [new_obs_size]
+                            
+                            print(f"✓ Statistiques d'observation adaptées: {old_obs_size} → {new_obs_size} features")
+                    
+                    # Sauvegarder le JSON modifié
+                    with open(dst, 'w') as f:
+                        json.dump(book_keeping, f, indent=2)
+                else:
+                    shutil.copy2(src, dst)
     
     print(f"\n✅ Checkpoint adapté sauvegardé dans {output_path}")
     print("Vous pouvez maintenant l'utiliser pour l'entraînement en self-play !")
