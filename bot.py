@@ -271,7 +271,7 @@ if __name__ == "__main__":
     
     # ===== HARDWARE CONFIGURATION =====
     # Adjust based on your system (RTX 4090 + 96 cores)
-    N_PROC = 2  # 50% of CPU cores for balanced CPU/GPU usage
+    N_PROC = 48  # 50% of CPU cores for balanced CPU/GPU usage
     DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
     
     # ===== NETWORK ARCHITECTURE =====
@@ -349,7 +349,7 @@ if __name__ == "__main__":
         timestep_limit=1e15,  # Infinite - stop manually
         
         # Rendering
-        render=True,
+        render=False,
         render_delay=STEP_TIME,
         
         # Logging
